@@ -159,9 +159,12 @@ VER=`$(curl -fsSL --retry 5 https://api.github.com/repos/actions/runner/releases
 [ -n "`$VER" ] || VER=2.338.2
 echo "Downloading runner `$VER"
 URL="https://github.com/actions/runner/releases/download/v`$VER/actions-runner-linux-x64-`$VER.tar.gz"
-# Retries and resumes if the connection drops (shows a progress bar)
+# Retries and resumes if the connection drops; shows % done, MB, speed and time left
+echo ""
+echo "Downloading the GitHub runner (about 180 MB):"
+echo "  %  = done   Received = downloaded so far   Speed   Time Left"
 for i in 1 2 3 4 5 6 7 8; do
-    curl -fL --progress-bar -C - --retry 5 --retry-delay 3 --retry-all-errors -o runner.tgz "`$URL" && break
+    curl -fL -C - --retry 5 --retry-delay 3 --retry-all-errors -o runner.tgz "`$URL" && break
     echo "Connection dropped, retrying (`$i/8)..."; sleep 5
 done
 tar tzf runner.tgz >/dev/null 2>&1 || { echo "Download incomplete - check your internet and run the script again"; exit 1; }
