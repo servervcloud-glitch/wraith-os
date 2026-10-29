@@ -29,7 +29,12 @@ jobs:
       - name: Build ISO in a Kali container
         run: |
           mkdir -p "$HOME/wraith-cache" "$HOME/wraith-builds"
-          docker pull kalilinux/kali-rolling
+          # Retry the image download if the connection drops
+          for i in 1 2 3 4 5 6; do
+            docker pull kalilinux/kali-rolling && break
+            [ $i -eq 6 ] && exit 1
+            echo "Download interrupted, retrying ($i/6) in 20 s..."; sleep 20
+          done
           docker run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/src:ro" \
             -v "$HOME/wraith-cache:/cache" \

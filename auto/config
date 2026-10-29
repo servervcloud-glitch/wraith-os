@@ -32,6 +32,7 @@ lb config noauto \
     --debian-installer none \
     --memtest none \
     --apt-indices false \
+    --apt-options "--yes -o Acquire::Retries=10 -o Acquire::http::Timeout=60" \
     --apt-recommends true \
     --cache-packages true \
     --chroot-squashfs-compression-type xz \
