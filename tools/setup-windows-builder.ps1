@@ -34,9 +34,12 @@ function Warn($msg) { Write-Host "  !!  $msg" -ForegroundColor Yellow }
 
 # Run a bash script inside Ubuntu (as root, or as your normal user)
 function InUbuntu([string]$script, [switch]$AsRoot) {
+    # Send the script as one base64 block so nothing can cut it off on the way in.
     $clean = $script -replace "`r", ""
-    if ($AsRoot) { $clean | wsl.exe -d $Distro -u root -- bash -s }
-    else         { $clean | wsl.exe -d $Distro -- bash -s }
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($clean))
+    $run = "echo $b64 | base64 -d > /tmp/wraith-step.sh && bash /tmp/wraith-step.sh; rc=`$?; rm -f /tmp/wraith-step.sh; exit `$rc"
+    if ($AsRoot) { wsl.exe -d $Distro -u root -e bash -c $run }
+    else         { wsl.exe -d $Distro -e bash -c $run }
     if ($LASTEXITCODE -ne 0) { throw "A step inside Ubuntu failed (exit code $LASTEXITCODE)." }
 }
 
@@ -92,7 +95,7 @@ Say "Step 2/7: memory and CPU for the build"
 $ramGB = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
 $cores = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
 $memGB = [math]::Max(4, [math]::Floor($ramGB * 2 / 3))
-$cpus  = [math]::Max(2, $cores - 2)
+$cpus  = [math]::Max(2, $cores - 1)
 @"
 [wsl2]
 memory=${memGB}GB
