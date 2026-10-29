@@ -23,6 +23,9 @@ Crafted by VIPIN.
 
 ## Building
 
+**Windows PC?** Run `tools/setup-windows-builder.ps1` in PowerShell as administrator; it sets up WSL2, Docker and the runner for you.
+
+
 Builds run on your own server through a self-hosted GitHub Actions runner
 labelled `wraith-builder` (needs Docker and about 100 GB free disk).
 
