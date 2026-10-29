@@ -15,10 +15,11 @@ insmod part_msdos
 # fall back to the screen's own mode if the firmware can't do 1080p.
 set gfxmode=1920x1080,auto
 set gfxpayload=keep
-terminal_output gfxterm
 
+# Fonts must be loaded before switching to the graphical terminal.
 set theme_dir=/boot/grub/themes/wraith
 for f in $theme_dir/*.pf2; do loadfont $f; done
+terminal_output gfxterm
 set theme=$theme_dir/theme.txt
 
 menuentry "Wraith Live" --class ghost {

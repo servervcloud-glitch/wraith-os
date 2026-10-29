@@ -649,7 +649,13 @@ def build_grub_fonts(out, sizes):
     os.makedirs(tmp, exist_ok=True)
     for name, weight, size in (("WraithMedium", 500, sizes["item"]), ("WraithRegular", 400, sizes["hint"])):
         ttf = os.path.join(tmp, f"{name}.ttf")
-        instantiateVariableFont(TTFont(FONT), {"wght": weight}).save(ttf)
+        inst = instantiateVariableFont(TTFont(FONT), {"wght": weight})
+        # GRUB names the font "<name> <style> <size>"; force style "Regular" so
+        # it always matches the names used in theme.txt.
+        for rec in inst["name"].names:
+            if rec.nameID in (2, 17):
+                rec.string = "Regular"
+        inst.save(ttf)
         subprocess.run(["grub-mkfont", "-s", str(size), "-n", name, "-o",
                         os.path.join(out, f"{name}-{size}.pf2"), ttf], check=True)
     shutil.rmtree(tmp)
