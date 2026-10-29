@@ -155,6 +155,7 @@ if ($LASTEXITCODE -eq 0) {
     InUbuntu @"
 set -e
 mkdir -p ~/actions-runner && cd ~/actions-runner
+if [ -x ./config.sh ] && [ -x ./bin/installdependencies.sh ]; then echo "Runner already downloaded"; exit 0; fi
 VER=`$(curl -fsSL --retry 5 https://api.github.com/repos/actions/runner/releases/latest 2>/dev/null | sed -n -E 's/.*"tag_name": *"v([^"]+)".*/\1/p' | head -n1)
 [ -n "`$VER" ] || VER=2.338.2
 echo "Downloading runner `$VER"
@@ -169,6 +170,17 @@ for i in 1 2 3 4 5 6 7 8; do
 done
 tar tzf runner.tgz >/dev/null 2>&1 || { echo "Download incomplete - check your internet and run the script again"; exit 1; }
 tar xzf runner.tgz && rm runner.tgz
+"@
+    Ok "Runner downloaded"
+    # Libraries the runner needs (libicu etc.), installed as root
+    InUbuntu -AsRoot @"
+set -e
+cd /home/$User/actions-runner && ./bin/installdependencies.sh
+"@
+    Ok "Runner libraries installed"
+    InUbuntu @"
+set -e
+cd ~/actions-runner
 ./config.sh --unattended --url $RepoUrl --token $Token --labels $Label --name "$env:COMPUTERNAME-wsl" --replace
 "@
     Ok "Runner registered with label '$Label'"
