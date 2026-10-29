@@ -155,9 +155,16 @@ if ($LASTEXITCODE -eq 0) {
     InUbuntu @"
 set -e
 mkdir -p ~/actions-runner && cd ~/actions-runner
-VER=`$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest | grep -m1 '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+VER=`$(curl -fsSL --retry 5 https://api.github.com/repos/actions/runner/releases/latest 2>/dev/null | sed -n -E 's/.*"tag_name": *"v([^"]+)".*/\1/p' | head -n1)
+[ -n "`$VER" ] || VER=2.338.2
 echo "Downloading runner `$VER"
-curl -fsSL -o runner.tgz "https://github.com/actions/runner/releases/download/v`$VER/actions-runner-linux-x64-`$VER.tar.gz"
+URL="https://github.com/actions/runner/releases/download/v`$VER/actions-runner-linux-x64-`$VER.tar.gz"
+# Retries and resumes if the connection drops (shows a progress bar)
+for i in 1 2 3 4 5 6 7 8; do
+    curl -fL --progress-bar -C - --retry 5 --retry-delay 3 --retry-all-errors -o runner.tgz "`$URL" && break
+    echo "Connection dropped, retrying (`$i/8)..."; sleep 5
+done
+tar tzf runner.tgz >/dev/null 2>&1 || { echo "Download incomplete - check your internet and run the script again"; exit 1; }
 tar xzf runner.tgz && rm runner.tgz
 ./config.sh --unattended --url $RepoUrl --token $Token --labels $Label --name "$env:COMPUTERNAME-wsl" --replace
 "@
