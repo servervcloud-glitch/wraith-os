@@ -45,6 +45,24 @@ python3 "$SRC"/branding/render.py --out "$WORK"
 # The server has 4 GB RAM: cap squashfs memory and threads, swap covers spikes.
 export MKSQUASHFS_OPTIONS="-mem 1024M -processors $(nproc) -b 1M"
 
+# Skip any package that this Kali snapshot doesn't have, instead of failing
+# the whole build (Kali drops and renames packages over time).
+log "Checking the package lists against the Kali archive"
+for list in config/package-lists/*.list.chroot; do
+    tmp=$(mktemp)
+    while IFS= read -r line; do
+        pkg=$(printf '%s' "$line" | sed 's/#.*//' | xargs)
+        if [ -z "$pkg" ]; then echo "$line" >> "$tmp"; continue; fi
+        if apt-cache show "$pkg" >/dev/null 2>&1; then
+            echo "$line" >> "$tmp"
+        else
+            echo "# skipped (not in Kali): $pkg" >> "$tmp"
+            log "WARNING: package '$pkg' is not in the Kali archive - skipped"
+        fi
+    done < "$list"
+    mv "$tmp" "$list"
+done
+
 log "Configuring"
 lb config
 
@@ -65,7 +83,8 @@ for attempt in 1 2 3 4; do
     [ -f .build/bootstrap ] || { lb clean --chroot 2>/dev/null || rm -rf chroot; }
 done
 
-ISO=$(ls -1 "$WORK"/*.iso | head -n1)
+ISO=$(ls -1 "$WORK"/*.iso 2>/dev/null | head -n1)
+[ -n "$ISO" ] || { log "No ISO was produced - look for the first error (E:) above"; exit 1; }
 STAMP=$(date -u +%Y%m%d-%H%M)
 NAME="wraith-${STAMP}-amd64.iso"
 mv "$ISO" "$OUT/$NAME"
