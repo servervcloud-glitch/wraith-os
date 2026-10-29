@@ -36,8 +36,8 @@ jobs:
             -v "$HOME/wraith-builds:/out" \
             kalilinux/kali-rolling bash /src/build.sh
 
-      - name: Keep only the 3 newest ISOs
+      - name: Keep only the newest ISO (saves ~13 GB per old build)
         run: |
           cd "$HOME/wraith-builds"
-          ls -1t wraith-*.iso 2>/dev/null | tail -n +4 | while read -r f; do rm -f "$f" "$f.sha256"; done
+          ls -1t wraith-*.iso 2>/dev/null | tail -n +2 | while read -r f; do rm -f "$f" "$f.sha256"; done
           ls -lh

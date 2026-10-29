@@ -5,7 +5,7 @@
     1. Installs WSL2 + Ubuntu (needs one restart)
     2. Gives WSL about two thirds of your RAM, plus swap
     3. Turns on systemd in Ubuntu and installs Docker
-    4. Checks you have ~100 GB free on C:
+    4. Checks you have ~75 GB free on C:
     5. Stops the PC sleeping while plugged in
     6. Installs the GitHub Actions runner (label: wraith-builder)
     7. Puts a "Wraith Builder" shortcut on your desktop and starts it
@@ -107,7 +107,7 @@ Ok "Docker works"
 # ---- 4. Disk space ---------------------------------------------------------
 Say "Step 4/7: disk space"
 $freeGB = [math]::Floor((Get-PSDrive C).Free / 1GB)
-if ($freeGB -lt 100) { Warn "Only $freeGB GB free on C:. The build needs about 100 GB - free some space before building." }
+if ($freeGB -lt 75) { Warn "Only $freeGB GB free on C:. The build needs about 70 GB - free some space before building." }
 else { Ok "$freeGB GB free on C:" }
 
 # ---- 5. No sleep while plugged in ------------------------------------------
