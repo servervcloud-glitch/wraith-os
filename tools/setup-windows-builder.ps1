@@ -53,7 +53,16 @@ if (-not $admin) {
 
 # ---- 1. WSL + Ubuntu -------------------------------------------------------
 Say "Step 1/7: WSL and Ubuntu"
-$installed = (wsl.exe -l -q 2>$null) -replace "`0", "" | Where-Object { $_.Trim() -eq $Distro }
+# Ask WSL for its distros without letting a "not installed" message stop the script.
+$installed = $null
+try {
+    $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+    $list = & wsl.exe -l -q 2>&1 | Out-String
+    $ErrorActionPreference = $old
+    if ($LASTEXITCODE -eq 0) {
+        $installed = ($list -replace "`0", "") -split "`r?`n" | Where-Object { $_.Trim() -eq $Distro }
+    }
+} catch { $installed = $null }
 if (-not $installed) {
     wsl.exe --install -d $Distro
     Write-Host ""
@@ -64,7 +73,9 @@ if (-not $installed) {
     Read-Host "`nPress Enter to close"
     exit
 }
-wsl.exe -d $Distro -u root -- true 2>$null
+$ErrorActionPreference = "Continue"
+wsl.exe -d $Distro -u root -- true 2>&1 | Out-Null
+$ErrorActionPreference = "Stop"
 if ($LASTEXITCODE -ne 0) {
     Warn "Ubuntu isn't set up yet. Open 'Ubuntu' from the Start menu, create a username + password, then run this script again."
     Read-Host "Press Enter to close"; exit
