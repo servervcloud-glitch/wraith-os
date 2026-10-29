@@ -47,13 +47,21 @@ export MKSQUASHFS_OPTIONS="-mem 1024M -processors $(nproc) -b 1M"
 
 # Skip any package that this Kali snapshot doesn't have, instead of failing
 # the whole build (Kali drops and renames packages over time).
+# Installable = has a real version to install, or another package provides it.
+# (apt-cache show also "finds" names that are only mentioned by other packages.)
+installable() {
+    local cand
+    cand=$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ {print $2}')
+    [ -n "$cand" ] && [ "$cand" != "(none)" ] && return 0
+    apt-cache showpkg "$1" 2>/dev/null | sed -n '/^Reverse Provides:/,$p' | tail -n +2 | grep -q .
+}
 log "Checking the package lists against the Kali archive"
 for list in config/package-lists/*.list.chroot; do
     tmp=$(mktemp)
     while IFS= read -r line; do
         pkg=$(printf '%s' "$line" | sed 's/#.*//' | xargs)
         if [ -z "$pkg" ]; then echo "$line" >> "$tmp"; continue; fi
-        if apt-cache show "$pkg" >/dev/null 2>&1; then
+        if installable "$pkg"; then
             echo "$line" >> "$tmp"
         else
             echo "# skipped (not in Kali): $pkg" >> "$tmp"
@@ -75,6 +83,12 @@ log "Building (this takes hours the first time; later builds reuse the cache)"
 # skipped and already-downloaded packages are reused from the cache.
 for attempt in 1 2 3 4; do
     if lb build; then break; fi
+    # Missing packages won't appear by retrying: stop now with a clear message.
+    if grep -qE "has no installation candidate|Unable to locate package" build.log 2>/dev/null; then
+        log "A package in the lists can't be installed:"
+        grep -E "has no installation candidate|Unable to locate package" build.log | sort -u
+        exit 1
+    fi
     [ $attempt -eq 4 ] && { log "Build failed 4 times, see the log above"; exit 1; }
     log "Build stopped (attempt $attempt/4), probably a dropped download - resuming in 30 s"
     sleep 30

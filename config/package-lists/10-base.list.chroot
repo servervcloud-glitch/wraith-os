@@ -32,7 +32,7 @@ amd64-microcode
 # Boot
 grub-pc-bin
 grub-efi-amd64-bin
-grub-efi-amd64-signed
+# grub-efi-amd64-signed: not in Kali (Secure Boot must be off for now)
 shim-signed
 plymouth
 plymouth-label

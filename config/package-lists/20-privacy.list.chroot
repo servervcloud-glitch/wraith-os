@@ -12,7 +12,7 @@ python3-stem
 apparmor
 apparmor-utils
 apparmor-profiles
-apparmor-profiles-extra
+# apparmor-profiles-extra: not in Kali
 usbguard
 secure-delete
 libpam-pwquality
