@@ -1,0 +1,22 @@
+# Wraith OS Tor configuration
+# All TCP traffic is redirected here by the Wraith firewall, and all DNS goes
+# to the DNSPort, so nothing leaves the machine outside Tor in Tor mode.
+
+SocksPort 127.0.0.1:9050 IsolateDestAddr IsolateDestPort
+TransPort 127.0.0.1:9040 IsolateClientAddr IsolateDestAddr
+DNSPort 127.0.0.1:5353
+
+# .onion and other names resolved by DNSPort get fake addresses from this
+# range, which the firewall then sends to the TransPort.
+VirtualAddrNetworkIPv4 10.192.0.0/10
+AutomapHostsOnResolve 1
+AutomapHostsSuffixes .onion,.exit
+
+# Lets the boot screen show real "Connecting to Tor" progress.
+ControlPort 127.0.0.1:9051
+CookieAuthentication 1
+CookieAuthFileGroupReadable 1
+
+ClientUseIPv6 0
+AvoidDiskWrites 1
+Log notice syslog

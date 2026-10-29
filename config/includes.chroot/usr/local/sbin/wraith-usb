@@ -1,0 +1,11 @@
+#!/bin/bash
+# wraith-usb lock|unlock|status
+# lock:   block any USB device plugged in from now on (used when the screen locks)
+# unlock: allow new USB devices again
+set -euo pipefail
+case "${1:-status}" in
+    lock)   usbguard set-parameter ImplicitPolicyTarget block >/dev/null; echo "New USB devices: blocked" ;;
+    unlock) usbguard set-parameter ImplicitPolicyTarget allow >/dev/null; echo "New USB devices: allowed" ;;
+    status) usbguard get-parameter ImplicitPolicyTarget ;;
+    *) echo "usage: wraith-usb lock|unlock|status" >&2; exit 64 ;;
+esac

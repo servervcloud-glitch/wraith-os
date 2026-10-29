@@ -1,0 +1,43 @@
+#!/bin/sh
+# Wraith OS live-build configuration.
+# Base: Kali rolling (Debian testing + Kali's tool archive).
+set -e
+
+KALI_MIRROR="${KALI_MIRROR:-http://http.kali.org/kali}"
+
+# Kernel hardening applied to every boot entry (see config/bootloaders).
+WRAITH_HARDEN="slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 \
+pti=on randomize_kstack_offset=on vsyscall=none debugfs=off \
+apparmor=1 security=apparmor"
+
+lb config noauto \
+    --distribution kali-rolling \
+    --debootstrap-options "--keyring=/usr/share/keyrings/kali-archive-keyring.gpg" \
+    --keyring-packages kali-archive-keyring \
+    --archive-areas "main contrib non-free non-free-firmware" \
+    --parent-mirror-bootstrap "$KALI_MIRROR" \
+    --parent-mirror-chroot "$KALI_MIRROR" \
+    --parent-mirror-binary "$KALI_MIRROR" \
+    --mirror-bootstrap "$KALI_MIRROR" \
+    --mirror-chroot "$KALI_MIRROR" \
+    --mirror-binary "$KALI_MIRROR" \
+    --mirror-chroot-security none \
+    --mirror-binary-security none \
+    --security false \
+    --updates false \
+    --architectures amd64 \
+    --linux-flavours amd64 \
+    --binary-images iso-hybrid \
+    --bootloaders "grub-pc grub-efi" \
+    --debian-installer none \
+    --memtest none \
+    --apt-indices false \
+    --apt-recommends true \
+    --cache-packages true \
+    --chroot-squashfs-compression-type xz \
+    --iso-application "Wraith OS" \
+    --iso-publisher "crafted by VIPIN" \
+    --iso-volume "WRAITH" \
+    --image-name wraith \
+    --bootappend-live "boot=live components quiet splash hostname=wraith username=wraith noswap nopersistence $WRAITH_HARDEN" \
+    "${@}"

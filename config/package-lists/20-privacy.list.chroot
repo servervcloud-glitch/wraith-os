@@ -1,0 +1,24 @@
+# Tor and network privacy
+tor
+tor-geoipdb
+# Tor bridges (obfs4 / snowflake) are added once confirmed in kali-rolling
+torbrowser-launcher
+nftables
+network-manager
+macchanger
+python3-stem
+
+# Hardening
+apparmor
+apparmor-utils
+apparmor-profiles
+apparmor-profiles-extra
+usbguard
+secure-delete
+libpam-pwquality
+busybox-static
+
+# Boot-screen renderer (re-renders the boot menu and animation at your
+# screen's exact resolution on the installed system)
+python3-pil
+python3-fonttools

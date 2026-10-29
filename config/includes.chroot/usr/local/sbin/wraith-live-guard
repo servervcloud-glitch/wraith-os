@@ -1,0 +1,29 @@
+#!/bin/bash
+# Wraith Live amnesia guard. Runs at boot in Wraith Live (and the installer session).
+#  - turns off any swap so nothing from RAM is ever written to a disk
+#  - copies a tiny watcher into RAM that powers the machine off the moment the
+#    boot USB is pulled out; memory is zeroed as processes exit (init_on_free=1)
+set -euo pipefail
+
+grep -qw 'wraith.mode=live\|wraith.mode=install' /proc/cmdline || exit 0
+
+swapoff -a || true
+
+SRC=$(findmnt -no SOURCE /run/live/medium 2>/dev/null || true)
+[ -n "$SRC" ] || { echo "wraith-live-guard: boot medium not found, watcher not started"; exit 0; }
+DISK=$(lsblk -no PKNAME "$SRC" 2>/dev/null | head -n1)
+[ -n "$DISK" ] || DISK=$(basename "$SRC")
+
+# Everything the watcher needs lives in RAM, because the USB it was loaded
+# from will be gone when it has to act.
+mkdir -p /run/wraith
+cp /bin/busybox /run/wraith/bb
+cat > /run/wraith/watch.sh <<EOF
+while [ -e /sys/block/$DISK ]; do /run/wraith/bb sleep 1; done
+echo e > /proc/sysrq-trigger
+/run/wraith/bb sleep 2
+echo i > /proc/sysrq-trigger
+/run/wraith/bb sleep 1
+echo o > /proc/sysrq-trigger
+EOF
+echo "wraith-live-guard: watching /dev/$DISK"

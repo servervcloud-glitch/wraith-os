@@ -1,0 +1,43 @@
+name: Build Wraith OS
+
+# Runs only on Vipin's own server (self-hosted runner, label wraith-builder),
+# so builds are free, private and have no disk or time limits.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: wraith-iso
+  cancel-in-progress: false
+
+jobs:
+  iso:
+    runs-on: [self-hosted, linux, wraith-builder]
+    timeout-minutes: 1440
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check disk space
+        run: |
+          df -h "$HOME"
+          free_gb=$(df --output=avail -BG "$HOME" | tail -1 | tr -dc 0-9)
+          if [ "$free_gb" -lt 60 ]; then
+            echo "::error::Only ${free_gb} GB free, the build needs about 100 GB"; exit 1
+          fi
+
+      - name: Build ISO in a Kali container
+        run: |
+          mkdir -p "$HOME/wraith-cache" "$HOME/wraith-builds"
+          docker pull kalilinux/kali-rolling
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$HOME/wraith-cache:/cache" \
+            -v "$HOME/wraith-builds:/out" \
+            kalilinux/kali-rolling bash /src/build.sh
+
+      - name: Keep only the 3 newest ISOs
+        run: |
+          cd "$HOME/wraith-builds"
+          ls -1t wraith-*.iso 2>/dev/null | tail -n +4 | while read -r f; do rm -f "$f" "$f.sha256"; done
+          ls -lh

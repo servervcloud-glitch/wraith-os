@@ -1,0 +1,58 @@
+#!/bin/bash
+# wraith-tor on|off|status|apply
+#   on     route everything through Tor (Tor-only firewall)
+#   off    direct internet (installed system only; refused in Wraith Live)
+#   status print "on" or "off"
+#   apply  load the firewall for the saved mode (used at boot)
+set -euo pipefail
+
+STATE=/etc/wraith/tor-mode
+NFT_DIR=/etc/wraith/nft
+
+is_live() { grep -qw 'wraith.mode=live\|wraith.mode=install' /proc/cmdline; }
+
+current() {
+    if is_live; then echo on; return; fi
+    [ -f "$STATE" ] && cat "$STATE" || echo on
+}
+
+load_direct() {
+    nft -f "$NFT_DIR/direct.nft"
+    [ -f /etc/wraith/inbound-ports ] || return 0
+    grep -Ev '^\s*(#|$)' /etc/wraith/inbound-ports | while read -r proto port; do
+        case "$proto" in
+            tcp|udp) nft add element inet wraith "inbound_$proto" "{ $port }" ;;
+        esac
+    done
+}
+
+apply() {
+    case "$(current)" in
+        on)
+            sysctl -q -w net.ipv6.conf.all.disable_ipv6=1 net.ipv6.conf.default.disable_ipv6=1
+            nft -f "$NFT_DIR/tor-only.nft"
+            # --no-block: at boot this runs before the network, so never wait on Tor here.
+            systemctl --no-block start tor.service 2>/dev/null || true
+            ;;
+        off)
+            sysctl -q -w net.ipv6.conf.all.disable_ipv6=0 net.ipv6.conf.default.disable_ipv6=0
+            load_direct
+            ;;
+    esac
+}
+
+[ "$(id -u)" -eq 0 ] || { echo "wraith-tor: run as root (sudo wraith-tor $*)" >&2; exit 1; }
+
+case "${1:-status}" in
+    on)
+        echo on > "$STATE"; apply; echo "Tor mode ON: all traffic goes through Tor." ;;
+    off)
+        if is_live; then
+            echo "Wraith Live is always Tor-only. Tor can only be switched off on an installed system." >&2
+            exit 2
+        fi
+        echo off > "$STATE"; apply; echo "Tor mode OFF: direct internet." ;;
+    status) current ;;
+    apply) apply ;;
+    *) echo "usage: wraith-tor on|off|status" >&2; exit 64 ;;
+esac

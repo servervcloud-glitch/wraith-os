@@ -1,0 +1,15 @@
+[Unit]
+Description=Wraith Live amnesia guard (no swap, power off if the USB is pulled)
+After=local-fs.target
+ConditionKernelCommandLine=|wraith.mode=live
+ConditionKernelCommandLine=|wraith.mode=install
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/sbin/wraith-live-guard
+ExecStart=/run/wraith/bb sh /run/wraith/watch.sh
+Restart=on-failure
+OOMScoreAdjust=-1000
+
+[Install]
+WantedBy=multi-user.target

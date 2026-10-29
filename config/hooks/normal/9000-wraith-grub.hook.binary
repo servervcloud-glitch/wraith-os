@@ -1,0 +1,21 @@
+#!/bin/bash
+# Replace live-build's generic boot menu with the Wraith menu + theme.
+# Binary hooks run inside the binary/ tree; the config is one level up.
+set -euo pipefail
+
+CFG=../config
+. "$CFG/binary"   # LB_BOOTAPPEND_LIVE
+
+KERNEL=/$(cd . && ls -1 live/vmlinuz* | head -n1)
+INITRD=/$(cd . && ls -1 live/initrd.img* | head -n1)
+
+mkdir -p boot/grub/themes
+rm -rf boot/grub/themes/wraith
+cp -a "$CFG/wraith-grub/themes/wraith" boot/grub/themes/wraith
+
+sed -e "s|@KERNEL@|$KERNEL|g" -e "s|@INITRD@|$INITRD|g" \
+    -e "s|@APPEND@|$LB_BOOTAPPEND_LIVE|g" \
+    "$CFG/wraith-grub/grub.cfg.in" > boot/grub/grub.cfg
+
+# The UEFI image's own grub.cfg just finds this one; make sure it does.
+echo "wraith: boot menu installed ($KERNEL)"

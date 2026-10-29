@@ -1,0 +1,62 @@
+#!/usr/sbin/nft -f
+# Wraith OS - Tor-only firewall.
+# Everything that is not Tor itself is either redirected into Tor (TCP and
+# DNS) or dropped (all other UDP, ICMP, IPv6). Nothing reaches the network
+# directly except Tor's own connections and DHCP to get an address.
+
+flush ruleset
+
+table ip wraith_nat {
+    chain output {
+        type nat hook output priority -100; policy accept;
+
+        # Tor's own traffic goes out as-is.
+        meta skuid "debian-tor" return
+
+        # Every DNS query, whatever server an app asks for, goes to Tor's DNSPort.
+        udp dport 53 redirect to :5353
+        tcp dport 53 redirect to :5353
+
+        # Local traffic stays local.
+        ip daddr 127.0.0.0/8 return
+
+        # .onion addresses mapped by Tor, and every other TCP connection,
+        # go through Tor's transparent proxy.
+        ip daddr 10.192.0.0/10 meta l4proto tcp redirect to :9040
+        meta l4proto tcp redirect to :9040
+    }
+}
+
+table inet wraith {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+        # DHCP replies
+        meta nfproto ipv4 udp sport 67 udp dport 68 accept
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy drop;
+        ct state invalid drop
+
+        # Redirected traffic ends up on loopback.
+        oif "lo" accept
+
+        # Tor itself, IPv4 only.
+        meta nfproto ipv4 meta skuid "debian-tor" ct state new,established accept
+
+        # DHCP requests to get an IP address.
+        meta nfproto ipv4 udp sport 68 udp dport 67 accept
+
+        ct state established,related accept
+
+        # Anything else (UDP, ICMP, IPv6, raw sockets) is a potential leak.
+        log prefix "wraith-blocked: " limit rate 5/minute drop
+    }
+}

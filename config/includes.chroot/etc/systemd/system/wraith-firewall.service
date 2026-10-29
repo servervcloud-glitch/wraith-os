@@ -1,0 +1,14 @@
+[Unit]
+Description=Wraith firewall (Tor-only or direct, before any network comes up)
+DefaultDependencies=no
+Before=network-pre.target NetworkManager.service
+Wants=network-pre.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/wraith-tor apply
+
+[Install]
+WantedBy=sysinit.target

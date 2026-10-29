@@ -1,0 +1,12 @@
+[Unit]
+Description=Render Wraith boot screens at this screen's native resolution
+After=multi-user.target
+ConditionKernelCommandLine=wraith.mode=installed
+
+[Service]
+Type=oneshot
+Nice=10
+ExecStart=/usr/local/sbin/wraith-display-fit
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,44 @@
+#!/bin/bash
+# Installed Wraith: re-render the boot menu and boot animation at this
+# screen's exact native resolution, so they are pixel-perfect on it.
+# Runs at boot; does nothing if the screen hasn't changed. Takes effect on
+# the next boot. Use `wraith-display-fit --force` to redo it.
+set -euo pipefail
+
+grep -qw 'wraith.mode=live\|wraith.mode=install' /proc/cmdline && exit 0
+
+mode=""
+for c in /sys/class/drm/card*-*; do
+    [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
+    mode=$(head -n1 "$c/modes" 2>/dev/null || true)   # first mode = native
+    [ -n "$mode" ] && break
+done
+[[ "$mode" =~ ^([0-9]+)x([0-9]+) ]] || { echo "wraith-display-fit: no screen found"; exit 0; }
+W=${BASH_REMATCH[1]}; H=${BASH_REMATCH[2]}
+
+STAMP=/var/lib/wraith/display-fit
+if [ "${1:-}" != "--force" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "${W}x${H}" ]; then
+    exit 0
+fi
+
+R=/usr/local/lib/wraith/branding/render.py
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+echo "wraith-display-fit: rendering boot screens for ${W}x${H}"
+python3 "$R" --plymouth-only "$TMP/plymouth" --extra-height "$H"
+python3 "$R" --grub "$TMP/grub" --size "${W}x${H}"
+
+for t in wraith wraith-light; do
+    rm -rf "/usr/share/plymouth/themes/$t"
+    cp -a "$TMP/plymouth/$t" "/usr/share/plymouth/themes/$t"
+done
+mkdir -p /boot/grub/themes
+rm -rf /boot/grub/themes/wraith
+cp -a "$TMP/grub" /boot/grub/themes/wraith
+
+sed -i "s/^GRUB_GFXMODE=.*/GRUB_GFXMODE=${W}x${H},auto/" /etc/default/grub.d/wraith.cfg
+update-grub
+update-initramfs -u
+echo "${W}x${H}" > "$STAMP"
+echo "wraith-display-fit: done, pixel-exact from the next boot"

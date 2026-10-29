@@ -1,0 +1,56 @@
+#!/bin/bash
+# Wraith OS system setup inside the image.
+set -euo pipefail
+
+chmod 0755 /usr/local/sbin/wraith-* /usr/local/lib/wraith/*.py
+
+# Identity
+echo wraith > /etc/hostname
+cat > /etc/os-release <<'EOF'
+PRETTY_NAME="Wraith OS"
+NAME="Wraith OS"
+ID=wraith
+ID_LIKE="kali debian"
+VERSION_ID="1.0"
+HOME_URL="https://github.com/servervcloud-glitch/wraith-os"
+EOF
+echo "Wraith OS - crafted by VIPIN" > /etc/issue.net
+printf 'Wraith OS \\n \\l\n\n' > /etc/issue
+
+# Firewall first, before any network comes up; Tor on by default
+mkdir -p /etc/wraith
+echo on > /etc/wraith/tor-mode
+systemctl enable wraith-firewall.service
+systemctl enable wraith-live-guard.service
+systemctl enable wraith-boot-status.service
+systemctl enable wraith-display-fit.service
+systemctl enable tor.service
+systemctl enable NetworkManager.service
+systemctl disable nftables.service 2>/dev/null || true
+
+# No root login; SSH off unless you turn it on
+passwd -l root
+systemctl disable ssh.service 2>/dev/null || true
+
+# AppArmor on, USB protection on
+systemctl enable apparmor.service
+touch /etc/usbguard/rules.conf
+chmod 0600 /etc/usbguard/rules.conf /etc/usbguard/usbguard-daemon.conf
+systemctl enable usbguard.service
+
+# Strong passwords for accounts you create
+sed -i 's/^# *minlen.*/minlen = 10/' /etc/security/pwquality.conf || true
+
+# Core dumps off
+mkdir -p /etc/security/limits.d /etc/systemd/coredump.conf.d
+echo '* hard core 0' > /etc/security/limits.d/90-wraith.conf
+printf '[Coredump]\nStorage=none\nProcessSizeMax=0\n' > /etc/systemd/coredump.conf.d/90-wraith.conf
+
+# Volatile journal: logs live in RAM only
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nStorage=volatile\n' > /etc/systemd/journald.conf.d/90-wraith.conf
+
+# Boot animation (rendered by branding/render.py into this image)
+if [ -d /usr/share/plymouth/themes/wraith ]; then
+    plymouth-set-default-theme wraith
+fi

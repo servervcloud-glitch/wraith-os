@@ -1,0 +1,13 @@
+[Unit]
+Description=Show real Tor connection progress on the Wraith boot screen
+After=tor.service wraith-firewall.service NetworkManager.service
+Before=display-manager.service
+Wants=tor.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/wraith/boot-status.py
+TimeoutStartSec=75
+
+[Install]
+WantedBy=graphical.target

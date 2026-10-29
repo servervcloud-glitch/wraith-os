@@ -1,0 +1,5 @@
+# Ports open to incoming connections when Tor mode is OFF (installed system).
+# Tor mode always blocks every incoming connection.
+# Examples:
+#   tcp 4444
+#   udp 1194

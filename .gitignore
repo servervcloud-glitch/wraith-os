@@ -1,0 +1,13 @@
+*.iso
+build.log
+cache/
+chroot/
+binary/
+.build/
+config/binary
+config/bootstrap
+config/chroot
+config/common
+config/source
+__pycache__/
+/out/

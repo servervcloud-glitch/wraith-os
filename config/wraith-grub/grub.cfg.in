@@ -1,0 +1,53 @@
+# Wraith OS boot menu (live USB). Generated into the ISO by
+# config/hooks/normal/9000-wraith-grub.hook.binary
+set default=0
+set timeout=8
+set timeout_style=menu
+
+insmod all_video
+insmod gfxterm
+insmod png
+insmod regexp
+insmod part_gpt
+insmod part_msdos
+
+# The theme is rendered pixel-exact for 1920x1080; ask for it first, and
+# fall back to the screen's own mode if the firmware can't do 1080p.
+set gfxmode=1920x1080,auto
+set gfxpayload=keep
+terminal_output gfxterm
+
+set theme_dir=/boot/grub/themes/wraith
+for f in $theme_dir/*.pf2; do loadfont $f; done
+set theme=$theme_dir/theme.txt
+
+menuentry "Wraith Live" --class ghost {
+    linux @KERNEL@ @APPEND@ wraith.mode=live
+    initrd @INITRD@
+}
+
+menuentry "Install Wraith" --class install {
+    linux @KERNEL@ @APPEND@ wraith.mode=install
+    initrd @INITRD@
+}
+
+submenu "Advanced options" --class advanced {
+    set theme=$theme_dir/theme.txt
+    menuentry "Wraith Live (safe graphics)" --class ghost {
+        linux @KERNEL@ @APPEND@ wraith.mode=live nomodeset
+        initrd @INITRD@
+    }
+    menuentry "Wraith Live (copy to RAM, then remove the USB)" --class ghost {
+        linux @KERNEL@ @APPEND@ wraith.mode=live toram
+        initrd @INITRD@
+    }
+    menuentry "Install Wraith (safe graphics)" --class install {
+        linux @KERNEL@ @APPEND@ wraith.mode=install nomodeset
+        initrd @INITRD@
+    }
+    if [ "$grub_platform" = "efi" ]; then
+        menuentry "Firmware settings (UEFI)" --class settings {
+            fwsetup
+        }
+    fi
+}

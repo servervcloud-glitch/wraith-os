@@ -1,0 +1,39 @@
+# Live system core
+live-boot
+live-config
+live-config-systemd
+systemd-sysv
+sudo
+locales
+console-setup
+keyboard-configuration
+cryptsetup
+cryptsetup-initramfs
+lvm2
+dosfstools
+ntfs-3g
+exfatprogs
+btrfs-progs
+
+# Kernel and firmware (Wi-Fi adapters matter for a pentest OS)
+linux-image-amd64
+firmware-linux
+firmware-linux-nonfree
+firmware-misc-nonfree
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+firmware-libertas
+firmware-mediatek
+intel-microcode
+amd64-microcode
+
+# Boot
+grub-pc-bin
+grub-efi-amd64-bin
+grub-efi-amd64-signed
+shim-signed
+plymouth
+plymouth-label
+initramfs-tools

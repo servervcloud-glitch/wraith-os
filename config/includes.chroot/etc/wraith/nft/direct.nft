@@ -1,0 +1,32 @@
+#!/usr/sbin/nft -f
+# Wraith OS - direct mode (installed system with Tor switched off).
+# Outgoing traffic is unrestricted so scans, Wi-Fi tools and listeners work.
+# Incoming connections are blocked unless the port is listed in
+# /etc/wraith/inbound-ports (one "tcp 4444" or "udp 53" per line).
+
+flush ruleset
+
+table inet wraith {
+    set inbound_tcp { type inet_service; }
+    set inbound_udp { type inet_service; }
+
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+        meta l4proto { icmp, ipv6-icmp } accept
+        udp sport 67 udp dport 68 accept
+        udp sport 547 udp dport 546 accept
+        tcp dport @inbound_tcp accept
+        udp dport @inbound_udp accept
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
