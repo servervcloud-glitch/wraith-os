@@ -17,6 +17,13 @@
 #>
 
 $ErrorActionPreference = "Stop"
+# Never close silently: show any error and wait for Enter.
+trap {
+    Write-Host "`n[wraith] ERROR: $_" -ForegroundColor Red
+    Write-Host "Take a photo of this screen and send it to Claude." -ForegroundColor Yellow
+    Read-Host "Press Enter to close"
+    exit 1
+}
 $Distro   = "Ubuntu"
 $RepoUrl  = "https://github.com/servervcloud-glitch/wraith-os"
 $Label    = "wraith-builder"
@@ -38,7 +45,9 @@ $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
          ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
     Say "Restarting as administrator..."
-    Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    Write-Host "A Windows prompt will ask for permission - click Yes. A new window then continues the setup."
+    Start-Process powershell -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$PSCommandPath`""
+    Start-Sleep -Seconds 3
     exit
 }
 
