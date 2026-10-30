@@ -133,21 +133,24 @@ function magnify() {
   const dock = $("#dock"), BASE = 52, MAX = 84, RANGE = 150;
   const items = () => [...dock.querySelectorAll(".app-btn .icon, #drawer-btn")];
   const cur = new Map();
-  let mx = null, raf = 0;
-  const frame = () => {
+  let mx = null, raf = 0, last = 0;
+  const frame = (t) => {
     raf = 0; let moving = false;
+    // time-based smoothing: same snappy feel at 60, 120 or 144 Hz (~95% there in 0.1 s)
+    const dt = last ? Math.min(50, t - last) : 16.7; last = t;
+    const k = 1 - Math.exp(-dt / 34);
     for (const el of items()) {
       let target = BASE;
       if (mx !== null) {
         const r = el.getBoundingClientRect(), d = Math.abs(mx - (r.left + r.width / 2));
         if (d < RANGE) target = BASE + (MAX - BASE) * (Math.cos((Math.PI * d) / RANGE) + 1) / 2;
       }
-      const now = cur.get(el) ?? BASE, next = now + (target - now) * 0.28;
+      const now = cur.get(el) ?? BASE, next = now + (target - now) * k;
       const v = Math.abs(target - next) < 0.15 ? target : next;
       if (v !== target) moving = true;
       cur.set(el, v); el.style.setProperty("--s", v.toFixed(2) + "px");
     }
-    if (moving) raf = requestAnimationFrame(frame);
+    if (moving) raf = requestAnimationFrame(frame); else last = 0;
   };
   const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
   dock.addEventListener("mousemove", (e) => { mx = e.clientX; kick(); });
