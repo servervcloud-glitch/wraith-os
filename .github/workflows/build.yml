@@ -47,7 +47,18 @@ jobs:
           if [ "$(docker inspect -f '{{.State.Running}}' wraith-build 2>/dev/null)" = "true" ]; then
             echo "A build is already running on this PC - following it"
           else
-            docker rm -f wraith-build >/dev/null 2>&1 || true
+            # A build that ran on while GitHub had lost contact: report how it ended.
+            if docker inspect wraith-build >/dev/null 2>&1; then
+              prev_code=$(docker inspect -f '{{.State.ExitCode}}' wraith-build)
+              echo "=== Last lines of the previous build (exit code $prev_code) ==="
+              docker logs --tail 60 wraith-build 2>&1 || true
+              docker rm -f wraith-build >/dev/null 2>&1 || true
+              if [ "$prev_code" = "0" ] && ls "$HOME"/wraith-builds/wraith-*.iso >/dev/null 2>&1; then
+                echo "The previous build finished successfully - the ISO is ready:"
+                ls -lh "$HOME"/wraith-builds/
+                exit 0
+              fi
+            fi
             # Retry the image download if the connection drops
             for i in 1 2 3 4 5 6; do
               docker pull kalilinux/kali-rolling && break
