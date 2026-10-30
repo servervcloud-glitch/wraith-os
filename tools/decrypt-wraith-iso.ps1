@@ -1,7 +1,8 @@
 # Wraith OS - turn the downloaded release parts into the ISO (Windows)
 #
 # 1. Download every  wraith-...-amd64.iso.gpg.partNN  file and the  .parts.sha256
-#    file from the GitHub release into your Downloads folder.
+#    file from the GitHub release into your Downloads folder - or into any
+#    folder (e.g. on D:) and put this script in the same folder.
 # 2. Right-click this file > "Run with PowerShell".
 #
 # It checks the parts downloaded correctly, joins them and decrypts the ISO
@@ -15,12 +16,16 @@ trap {
 }
 function Say($t, $c = 'Cyan') { Write-Host $t -ForegroundColor $c }
 
-$dir = Join-Path $env:USERPROFILE 'Downloads'
 Say "Wraith OS - ISO decrypt`n" 'Magenta'
 
-# ---- find the parts (newest build if there are several) --------------------
+# ---- find the parts: next to this script, or in Downloads -------------------
+$dir = $null
+foreach ($d in @($PSScriptRoot, (Join-Path $env:USERPROFILE 'Downloads'))) {
+    if ($d -and (Get-ChildItem -Path $d -Filter 'wraith-*-amd64.iso.gpg.part*' -File -ErrorAction SilentlyContinue)) { $dir = $d; break }
+}
+if (-not $dir) { throw "No 'wraith-...iso.gpg.partNN' files found next to this script or in Downloads. Download them from the release first." }
+Say "Folder: $dir"
 $all = Get-ChildItem -Path $dir -Filter 'wraith-*-amd64.iso.gpg.part*' -File
-if (-not $all) { throw "No 'wraith-...iso.gpg.partNN' files found in $dir. Download them from the release first." }
 $name = ($all | ForEach-Object { $_.Name -replace '\.iso\.gpg\.part\d+$', '' } | Sort-Object -Descending | Select-Object -First 1)
 $parts = $all | Where-Object { $_.Name -like "$name.iso.gpg.part*" } | Sort-Object Name
 Say "Build: $name  ($($parts.Count) parts)"
