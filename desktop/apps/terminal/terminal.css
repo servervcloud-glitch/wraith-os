@@ -1,0 +1,26 @@
+body { background: var(--surface-container-low); }
+.tframe { display: grid; grid-template-rows: 48px 1fr; height: 100%; }
+.tbar { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; }
+.tabs { display: flex; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 14px; border-radius: 17px; max-width: 220px; flex: none;
+  font-size: 13px; font-weight: 500; color: var(--on-surface-variant); transition: background .25s, color .25s, border-radius .45s var(--spring);
+  animation: tabIn .4s var(--spring); }
+@keyframes tabIn { from { opacity: 0; transform: scale(.85); } }
+.tab:hover { background: color-mix(in srgb, var(--on-surface) 6%, transparent); }
+.tab.on { background: var(--secondary-container); color: var(--on-secondary-container); border-radius: 12px; }
+.tab .ms { font-size: 17px; }
+.tab .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab .x { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; opacity: 0; transition: opacity .2s; }
+.tab:hover .x, .tab.on .x { opacity: .8; } .tab .x:hover { background: color-mix(in srgb, var(--on-surface) 12%, transparent); }
+.tab .x .ms { font-size: 15px; }
+.add { width: 34px; height: 34px; border-radius: 17px; display: grid; place-items: center; color: var(--on-surface-variant); flex: none; }
+.add:hover { background: color-mix(in srgb, var(--on-surface) 8%, transparent); border-radius: 11px; }
+.panes { position: relative; margin: 0 8px 8px; border-radius: 18px; overflow: hidden; background: var(--term-bg); }
+.pane { position: absolute; inset: 0; padding: 12px 6px 6px 16px; visibility: hidden; }
+.pane.on { visibility: visible; animation: paneIn .3s var(--emph); }
+@keyframes paneIn { from { opacity: .4; } }
+.pane .xterm, .pane .xterm-viewport { background: transparent !important; }
+.pane .xterm-viewport::-webkit-scrollbar { width: 8px; }
+.pane .xterm-viewport::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 4px; }
+.ended { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); }

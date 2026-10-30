@@ -27,6 +27,7 @@ rfkill
 upower
 brightnessctl
 wl-clipboard
+fonts-jetbrains-mono
 playerctl
 libglib2.0-bin
 grim
