@@ -75,27 +75,26 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
 /* ---------------- dock ---------------- */
 #dock {
   position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 6px; padding: 8px 10px; z-index: 10;
+  display: flex; align-items: flex-end; gap: 6px; padding: 8px 10px; z-index: 10;
+  height: 68px; overflow: visible;              /* magnified icons rise above the bar, like macOS */
   border-radius: 28px;
   background: color-mix(in srgb, var(--surface-container) 62%, transparent);
   backdrop-filter: blur(24px) saturate(1.4);
   box-shadow: 0 10px 40px rgba(0,0,0,.22), inset 0 0 0 1px color-mix(in srgb, var(--on-surface) 8%, transparent);
 }
-.dock-apps { display: flex; gap: 6px; }
-.dock-sep { width: 1px; height: 30px; margin: 0 4px; background: color-mix(in srgb, var(--on-surface) 16%, transparent); }
+.dock-apps { display: flex; align-items: flex-end; gap: 6px; }
+.dock-sep { align-self: center; width: 1px; height: 30px; margin: 0 4px; background: color-mix(in srgb, var(--on-surface) 16%, transparent); }
 .dock-btn {
-  width: 52px; height: 52px; border-radius: 18px; display: grid; place-items: center;
+  --s: 52px;
+  width: var(--s); height: var(--s); border-radius: calc(var(--s) * .35); display: grid; place-items: center; flex: none;
   background: var(--primary-container); color: var(--on-primary-container);
-  transition: transform .45s var(--spring), border-radius .45s var(--spring);
 }
-.dock-btn .ms { font-size: 26px; }
-.dock-btn:hover { transform: translateY(-4px) scale(1.06); border-radius: 26px; }
-.app-btn { position: relative; transition: transform .45s var(--spring); }
-.app-btn:hover { transform: translateY(-6px) scale(1.1); }
-.app-btn:active { transform: scale(.9); }
+.dock-btn .ms { font-size: calc(var(--s) * .5); }
+.app-btn { position: relative; display: block; line-height: 0; transition: transform .3s var(--spring); }
+.app-btn:active, .dock-btn:active { transform: scale(.9); }
 .app-btn .tip {
   position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translate(-50%, 6px);
-  padding: 5px 10px; border-radius: 8px; font-size: 12px; white-space: nowrap;
+  padding: 5px 10px; border-radius: 8px; font-size: 12px; line-height: 1.3; white-space: nowrap;
   background: var(--inverse-surface); color: var(--inverse-on-surface);
   opacity: 0; pointer-events: none; transition: opacity .15s, transform .3s var(--spring);
 }

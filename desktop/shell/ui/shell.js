@@ -123,6 +123,35 @@ function buildDock() {
     b.onclick = () => launch(app, b.firstChild);
     box.append(b);
   }
+  magnify();
+}
+
+// macOS-style magnification: the icon under the cursor grows the most and its
+// neighbours a little less, so the dock swells smoothly around the pointer.
+// The icons are re-drawn at the larger size (not scaled), so they stay sharp.
+function magnify() {
+  const dock = $("#dock"), BASE = 52, MAX = 84, RANGE = 150;
+  const items = () => [...dock.querySelectorAll(".app-btn .icon, #drawer-btn")];
+  const cur = new Map();
+  let mx = null, raf = 0;
+  const frame = () => {
+    raf = 0; let moving = false;
+    for (const el of items()) {
+      let target = BASE;
+      if (mx !== null) {
+        const r = el.getBoundingClientRect(), d = Math.abs(mx - (r.left + r.width / 2));
+        if (d < RANGE) target = BASE + (MAX - BASE) * (Math.cos((Math.PI * d) / RANGE) + 1) / 2;
+      }
+      const now = cur.get(el) ?? BASE, next = now + (target - now) * 0.28;
+      const v = Math.abs(target - next) < 0.15 ? target : next;
+      if (v !== target) moving = true;
+      cur.set(el, v); el.style.setProperty("--s", v.toFixed(2) + "px");
+    }
+    if (moving) raf = requestAnimationFrame(frame);
+  };
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+  dock.addEventListener("mousemove", (e) => { mx = e.clientX; kick(); });
+  dock.addEventListener("mouseleave", () => { mx = null; kick(); });
 }
 
 let cat = "All";
