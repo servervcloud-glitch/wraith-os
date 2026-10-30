@@ -55,6 +55,6 @@ if [ -d /usr/share/plymouth/themes/wraith ]; then
     plymouth-set-default-theme wraith
 fi
 
-# Orbit cursor as the system-wide default cursor theme
+# Wraith cursors (Wisp tail busy cursor) as the system-wide default cursor theme
 mkdir -p /usr/share/icons/default
 printf '[Icon Theme]\nInherits=Wraith\n' > /usr/share/icons/default/index.theme
