@@ -73,8 +73,14 @@
       <div class="qs-head">
         <div class="avatar">W</div>
         <div class="who"><b>wraith</b><span id="qs-mode">Wraith Live</span></div>
+        <button class="round" id="settings-btn" aria-label="Settings"><span class="ms">settings</span></button>
         <button class="round" id="lock-btn" aria-label="Lock"><span class="ms">lock</span></button>
         <button class="round" id="power-btn" aria-label="Power"><span class="ms">power_settings_new</span></button>
+      </div>
+      <div class="power-row" id="power-row" hidden>
+        <button data-act="logout"><span class="ms">logout</span>Log out</button>
+        <button data-act="reboot"><span class="ms">restart_alt</span>Restart</button>
+        <button data-act="poweroff" class="danger"><span class="ms">power_settings_new</span>Shut down</button>
       </div>
       <div class="sliders">
         <label class="slider" data-key="brightness"><span class="ms">light_mode</span><input type="range" min="0" max="100" value="70"></label>

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Opens the Welcome screen on the first login (until it's finished once).
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/wraith/welcome-done" ] || exec wraith-app welcome

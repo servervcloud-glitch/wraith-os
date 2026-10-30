@@ -66,6 +66,14 @@ mkdir -p "$D/usr/share/wraith/shell" "$D/usr/local/bin"
 cp -r "$SRC/desktop/shell/ui" "$SRC/desktop/shell/host" "$D/usr/share/wraith/shell/"
 rm -rf "$D/usr/share/wraith/shell/ui/preview"     # preview-only sample icons
 install -m 755 "$SRC/desktop/shell/host/wraith-shell" "$SRC/desktop/shell/host/wraith-shell-ctl" "$D/usr/local/bin/"
+# Wraith apps: Settings, App Manager, Terminal, Welcome
+mkdir -p "$D/usr/share/wraith/apps" "$D/usr/share/applications" "$D/usr/share/icons/hicolor/scalable/apps"
+cp -r "$SRC"/desktop/apps/common "$SRC"/desktop/apps/settings "$SRC"/desktop/apps/apps \
+      "$SRC"/desktop/apps/terminal "$SRC"/desktop/apps/welcome "$D/usr/share/wraith/apps/"
+find "$D/usr/share/wraith/apps" -name mock.js -delete       # preview-only stand-ins
+install -m 755 "$SRC/desktop/apps/host/wraith-app" "$SRC/desktop/apps/host/wraith-welcome-once" "$D/usr/local/bin/"
+install -m 644 "$SRC"/desktop/applications/*.desktop "$D/usr/share/applications/"
+install -m 644 "$SRC"/desktop/icons/*.svg "$D/usr/share/icons/hicolor/scalable/apps/"
 
 # Skip any package that this Kali snapshot doesn't have, instead of failing
 # the whole build (Kali drops and renames packages over time).

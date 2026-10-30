@@ -223,18 +223,18 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
      cut from the icon's own outline (mask minus a shifted copy of itself)
    - light: highlight on top, shade at the bottom, clipped to the outline
    - a shadow underneath, and a real 3D tilt towards the cursor on hover */
-.icon.logo { background: none; box-shadow: none; border-radius: 0; overflow: visible; transform-style: preserve-3d;
+.icon.logo { background: none; box-shadow: none; border-radius: 0; overflow: visible;
   transform: perspective(calc(var(--s) * 4)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition: transform .5s var(--spring); }
 .icon.logo::before { display: none; }
 .icon.logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 0; }
-.icon.logo > img { transform: translateZ(calc(var(--s) * .02)); }
-.icon.logo .depth { position: absolute; inset: 0; transform-style: preserve-3d; }
-.icon.logo .depth img { transform: translate3d(0, calc(var(--s) * var(--k) * .016), calc(var(--s) * var(--k) * -.03));
+
+.icon.logo .depth { position: absolute; inset: 0; }
+.icon.logo .depth img { transform: translateY(calc(var(--s) * var(--k) * .016));
   filter: brightness(calc(.58 - var(--k) * .06)) saturate(1.2); }
 .icon.logo .depth img:last-child { filter: brightness(.18) drop-shadow(0 calc(var(--s) * .10) calc(var(--s) * .10) rgba(0,0,0,.5)); }
 .icon.logo .gloss, .icon.logo .gloss::before, .icon.logo .gloss::after { position: absolute; inset: 0; pointer-events: none; }
-.icon.logo .gloss { transform: translateZ(calc(var(--s) * .021));
+.icon.logo .gloss {
   -webkit-mask: var(--img) center / contain no-repeat; mask: var(--img) center / contain no-repeat;
   background:
     radial-gradient(110% 60% at 28% 0%, rgba(255,255,255,.7), rgba(255,255,255,.16) 42%, transparent 60%),
@@ -322,3 +322,12 @@ body.in-os #dock { backdrop-filter: none; background: color-mix(in srgb, var(--s
 .isl-pdot { width: 7px; height: 7px; border-radius: 50%; flex: none; animation: pdotIn .45s var(--spring); }
 .isl-trail .isl-pdot + .isl-pdot { margin-left: -2px; }
 @keyframes pdotIn { from { transform: scale(0); } }
+
+/* power options under the quick settings header */
+.power-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: -4px 0 14px; animation: pwrIn .4s var(--spring); }
+@keyframes pwrIn { from { opacity: 0; transform: translateY(-8px) scale(.96); } }
+.power-row button { height: 52px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 12px; font-weight: 600; background: var(--surface-container-highest); transition: border-radius .4s var(--spring), background .2s; }
+.power-row button:hover { border-radius: 26px; }
+.power-row button .ms { font-size: 20px; }
+.power-row button.danger { background: var(--error-container); color: var(--on-error-container); }

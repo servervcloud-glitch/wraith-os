@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to Wraith
+Comment=Set up Wraith
+Exec=wraith-app welcome
+Icon=wraith-welcome
+Categories=System;
+Keywords=setup;welcome;tour
+StartupWMClass=os.wraith.Welcome
+Terminal=false
+NoDisplay=true

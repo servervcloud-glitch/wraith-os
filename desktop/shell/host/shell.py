@@ -27,6 +27,7 @@ import mimetypes
 import os
 import re
 import shlex
+import shutil
 import socket
 import subprocess
 import sys
@@ -50,21 +51,22 @@ CONF_DIR = os.path.join(GLib.get_user_config_dir(), "wraith")
 CONF_FILE = os.path.join(CONF_DIR, "shell.json")
 SOCK = os.path.join(GLib.get_user_runtime_dir(), "wraith-shell.sock")
 BAR_H, DOCK_ZONE = 40, 92          # reserved space at the top and bottom (px)
-TERMINAL = ["foot"]                 # terminal for Terminal=true apps (Wraith Terminal later)
+# Terminal=true apps open in Wraith Terminal (foot if it's missing)
 
 DEFAULT_DOCK = [  # first existing id of each group
-    ["foot", "org.codeberg.dnkl.foot"],
+    ["wraith-terminal", "foot", "org.codeberg.dnkl.foot"],
     ["torbrowser", "torbrowser-launcher", "torbrowser.desktop"],
     ["org.gnome.Nautilus", "thunar"],
     ["kali-nmap"],
     ["kali-burpsuite"],
     ["kali-metasploit-framework"],
     ["org.wireshark.Wireshark", "kali-wireshark", "wireshark"],
+    ["wraith-apps"],
     ["wraith-settings"],
 ]
 RENAME = {"foot": "Terminal", "org.codeberg.dnkl.foot": "Terminal", "org.gnome.Nautilus": "Files",
           "kali-metasploit-framework": "Metasploit", "kali-burpsuite": "Burp Suite"}
-HIDE = {"footclient", "foot-server", "org.codeberg.dnkl.footclient", "org.codeberg.dnkl.foot-server",
+HIDE = {"foot", "org.codeberg.dnkl.foot", "footclient", "foot-server", "org.codeberg.dnkl.footclient", "org.codeberg.dnkl.foot-server",
         "org.freedesktop.Xwayland", "root-terminal", "display-im7.q16", "python3.14", "texdoctk"}
 KALI_MENU = "/etc/xdg/menus/applications-merged/kali-applications.menu"
 LIVE_STATUS = "/run/wraith/desktop-status.json"   # written by wraith-status-watch (root)
@@ -230,7 +232,11 @@ class Apps:
         # drop the %f/%U/... field codes from Exec
         argv = [x for x in shlex.split(a["exec"]) if not re.fullmatch(r"%[a-zA-Z]", x)]
         argv = [re.sub(r"%[a-zA-Z]", "", x) for x in argv]
-        return TERMINAL + ["--title", a["name"], "--"] + argv if a["terminal"] else argv
+        if not a["terminal"]:
+            return argv
+        if shutil.which("wraith-app"):
+            return ["wraith-app", "terminal", "run=" + " ".join(shlex.quote(x) for x in argv), "title=" + a["name"]]
+        return ["foot", "--title", a["name"], "--"] + argv
 
 
 # --------------------------------------------------------------------------- system
@@ -387,6 +393,9 @@ class Backend:
 
     def power(self, a):
         act = a.get("action")
+        if act == "settings":
+            subprocess.Popen(["wraith-app", "settings"], start_new_session=True)
+            return {"ok": True}
         cmd = {"lock": ["hyprlock"], "logout": ["hyprctl", "dispatch", "exit"],
                "reboot": ["systemctl", "reboot"], "poweroff": ["systemctl", "poweroff"]}.get(act)
         if cmd:
@@ -538,9 +547,10 @@ class Host:
         self.views.append(view)
         return view
 
-    def _layer_window(self, layer, namespace, monitor=None, anchors="tblr", zone=-1, keyboard=False):
+    def _layer_window(self, layer, namespace, monitor=None, anchors="tblr", zone=-1, keyboard=False, styled=True):
         win = Gtk.Window(application=self.app)
-        win.add_css_class("wraith-layer")
+        if styled:   # transparent background (not on the spacers: it stops sway honouring their reserved space)
+            win.add_css_class("wraith-layer")
         LayerShell.init_for_window(win)
         LayerShell.set_layer(win, layer)
         LayerShell.set_namespace(win, namespace)
@@ -567,8 +577,11 @@ class Host:
 
         # reserve room for the bar and the dock
         for anchors, h, zone in (("tlr", BAR_H, BAR_H), ("blr", 1, DOCK_ZONE)):
-            sp = self._layer_window(LayerShell.Layer.BOTTOM, "wraith-spacer", anchors=anchors, zone=zone)
+            sp = self._layer_window(LayerShell.Layer.BOTTOM, "wraith-spacer", anchors=anchors, zone=zone, styled=False)
             sp.set_default_size(1, h)
+            filler = Gtk.Box()                 # an empty window may never be mapped
+            filler.set_size_request(1, h)
+            sp.set_child(filler)
             sp.connect("map", lambda w: GLib.idle_add(lambda: w.get_surface().set_input_region(cairo.Region()) or False))
             sp.present()
 

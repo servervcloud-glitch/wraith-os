@@ -226,6 +226,6 @@ class Backend:
             pass
         ok, gpu = run(["sh", "-c", "lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -1 | cut -d: -f3"])
         return {"version": "1.0", "mode": "Wraith Live" if is_live() else "Installed", "kernel": platform.release(),
-                "base": "Kali " + (base or "rolling"), "cpu": re.sub(r"\s+", " ", cpu), "memory": mem,
+                "base": "Kali " + (base.replace("kali-", "") if base else "rolling"), "cpu": re.sub(r"\s+", " ", cpu), "memory": mem,
                 "disk": {"total": st.f_blocks * st.f_frsize, "free": st.f_bavail * st.f_frsize},
                 "gpu": gpu.strip() if ok else "", "hostname": platform.node()}

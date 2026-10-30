@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Comment=Wraith Terminal - command line with tabs
+Exec=wraith-app terminal
+Icon=wraith-terminal
+Categories=System;TerminalEmulator;
+Keywords=terminal;shell;command;console
+StartupWMClass=os.wraith.Terminal
+Terminal=false

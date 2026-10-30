@@ -624,6 +624,10 @@ async function start() {
   setInterval(refreshStatus, 10000);
   tick(); setInterval(tick, 1000 * 15);
   $("#drawer-btn").onclick = openDrawer;
+  $("#settings-btn").onclick = () => { closeAll(); call("power", { action: "settings" }); };
+  $("#lock-btn").onclick = () => { closeAll(); call("power", { action: "lock" }); };
+  $("#power-btn").onclick = () => { const r = $("#power-row"); r.hidden = !r.hidden; };
+  for (const b of document.querySelectorAll("#power-row button")) b.onclick = () => call("power", { action: b.dataset.act });
   $("#status-pill").onclick = openQS;
   $("#scrim").onclick = () => closeAll();
   $("#search").oninput = () => fillGrid(false);

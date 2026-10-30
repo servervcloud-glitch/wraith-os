@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Settings
+Comment=Updates, Wi-Fi, privacy, appearance and more
+Exec=wraith-app settings
+Icon=wraith-settings
+Categories=Settings;System;
+Keywords=update;wifi;tor;theme;password;display
+StartupWMClass=os.wraith.Settings
+Terminal=false

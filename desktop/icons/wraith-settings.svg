@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<defs><linearGradient id="gs" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#a79fff"/><stop offset="1" stop-color="#5b52e0"/></linearGradient></defs>
+<rect x="16" y="16" width="224" height="224" rx="64" fill="url(#gs)"/>
+<rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(0 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(45 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(90 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(135 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(180 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(225 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(270 128 128)"/><rect x="116" y="50" width="24" height="40" rx="8" fill="#fff" transform="rotate(315 128 128)"/><circle cx="128" cy="128" r="58" fill="#fff"/><circle cx="128" cy="128" r="26" fill="#6a5ff0"/>
+</svg>

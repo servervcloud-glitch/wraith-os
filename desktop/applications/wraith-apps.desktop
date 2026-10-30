@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=App Manager
+Comment=Find, install and remove Kali tools
+Exec=wraith-app apps
+Icon=wraith-apps
+Categories=System;PackageManager;
+Keywords=install;tools;software;packages;store
+StartupWMClass=os.wraith.Apps
+Terminal=false
