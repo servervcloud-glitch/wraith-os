@@ -55,6 +55,7 @@ if [ -d /usr/share/plymouth/themes/wraith ]; then
     plymouth-set-default-theme wraith
 fi
 
-# Wraith cursors (Wisp tail busy cursor) as the system-wide default cursor theme
+# Wraith cursors as the default: white "Wraith" (dark theme). The desktop
+# switches to "Wraith-Black" when the light theme is on.
 mkdir -p /usr/share/icons/default
 printf '[Icon Theme]\nInherits=Wraith\n' > /usr/share/icons/default/index.theme

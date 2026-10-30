@@ -58,7 +58,7 @@ export MKSQUASHFS_OPTIONS="-mem 1024M -processors $(nproc) -b 1M"
 if [ "$RESUME" = 0 ]; then
 log "Rendering boot menu and boot animation assets"
 python3 "$SRC"/branding/render.py --out "$WORK"
-python3 "$SRC"/desktop/cursors/make_cursors.py "$WORK/config/includes.chroot/usr/share/icons/Wraith"
+python3 "$SRC"/desktop/cursors/make_cursors.py "$WORK/config/includes.chroot/usr/share/icons"
 
 # Skip any package that this Kali snapshot doesn't have, instead of failing
 # the whole build (Kali drops and renames packages over time).
