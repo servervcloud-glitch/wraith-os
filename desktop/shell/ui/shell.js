@@ -551,6 +551,12 @@ function activity(a) {
   if (a.done) island.end("job", { icon: a.ok ? "check_circle" : "error", title: a.title, sub: a.sub || (a.ok ? "All done" : ""), accent: a.ok ? "#9be6b4" : "#ffb4ab" });
   else island.set("job", { icon: a.kind === "remove" ? "delete" : "download", title: a.title, short: a.short, sub: a.sub, progress: a.progress ?? 0, onclick: open });
 }
+// Downloads from any app (browser, wget, curl...)
+function download(d) {
+  if (d.cancel) return island.end(d.id);
+  if (d.done) return island.end(d.id, { icon: "download_done", title: d.name, sub: "Downloaded · " + d.sub, accent: "#9be6b4", onclick: () => call("showFile", { path: d.path }) });
+  island.set(d.id, { icon: "downloading", title: d.name, short: d.name.length > 18 ? d.name.slice(0, 16) + "…" : d.name, sub: "Downloading · " + d.sub });
+}
 function osd(kind, value) {
   const icons = { volume: value == 0 ? "volume_off" : value < 40 ? "volume_down" : "volume_up", brightness: "light_mode" };
   island.alert({ icon: icons[kind], title: kind === "volume" ? "Volume" : "Brightness", progress: value / 100, wide: 320 }, 1400);
@@ -637,7 +643,7 @@ async function start() {
   });
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
   island.render();
-  window.shell = { island, osd, activity, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  window.shell = { island, osd, activity, download, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
   requestAnimationFrame(syncInput);
 }
 start();

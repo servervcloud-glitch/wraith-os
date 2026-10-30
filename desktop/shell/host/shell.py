@@ -384,6 +384,13 @@ class Backend:
             run(["playerctl", act])
         return {"ok": True}
 
+    def showFile(self, a):
+        path = a.get("path") or ""
+        if os.path.exists(path):
+            cmd = ["nautilus", "--select", path] if shutil.which("nautilus") else ["xdg-open", os.path.dirname(path)]
+            subprocess.Popen(cmd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return {"ok": True}
+
     def openApp(self, a):
         app = a.get("app")
         if app in ("settings", "apps", "terminal"):
@@ -407,7 +414,7 @@ class Backend:
         return {"ok": True}
 
     CALLS = {"status": status, "toggle": toggle, "set": set, "theme": theme, "apps": apps_,
-             "launch": launch, "power": power, "media": media, "openApp": openApp, "inputRegion": inputRegion}
+             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "inputRegion": inputRegion}
 
     def call(self, name, args):
         fn = self.CALLS.get(name)
@@ -549,7 +556,7 @@ class Host:
 
     def _layer_window(self, layer, namespace, monitor=None, anchors="tblr", zone=-1, keyboard=False, styled=True):
         win = Gtk.Window(application=self.app)
-        if styled:   # transparent background (not on the spacers: it stops sway honouring their reserved space)
+        if styled:   # transparent background (spacers get a near-invisible fill instead, see build())
             win.add_css_class("wraith-layer")
         LayerShell.init_for_window(win)
         LayerShell.set_layer(win, layer)
@@ -564,7 +571,8 @@ class Host:
 
     def build(self):
         css = Gtk.CssProvider()
-        css.load_from_string("window.wraith-layer, window.wraith-layer > * { background: none; }")
+        css.load_from_string("window.wraith-layer, window.wraith-layer > * { background: none; }"
+                             " window.wraith-spacer, window.wraith-spacer > * { background: rgba(0,0,0,0.004); }")
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         monitors = Gdk.Display.get_default().get_monitors()
@@ -582,6 +590,7 @@ class Host:
             filler = Gtk.Box()                 # an empty window may never be mapped
             filler.set_size_request(1, h)
             sp.set_child(filler)
+            sp.add_css_class("wraith-spacer")  # near-invisible fill: a surface that draws nothing is never mapped, and its reserved space is ignored
             sp.connect("map", lambda w: GLib.idle_add(lambda: w.get_surface().set_input_region(cairo.Region()) or False))
             sp.present()
 
@@ -595,6 +604,7 @@ class Host:
         self._start_socket()
         self._start_media()
         self._start_privacy()
+        self._start_downloads()
         # refresh the shell as soon as Tor / USB guard report something
         self._live_mon = Gio.File.new_for_path(LIVE_STATUS).monitor_file(Gio.FileMonitorFlags.NONE, None)
         self._live_mon.connect("changed", lambda *a: self._js(self.ui_view, "window.shell && shell.refreshStatus()"))
@@ -649,6 +659,93 @@ class Host:
         except (OSError, ValueError):
             return
         self._js(self.ui_view, f"window.shell && shell.activity({json.dumps(data)})")
+
+    # ---- Downloads -------------------------------------------------------------
+    # Any file arriving in Downloads, Desktop or the home folder - from a
+    # browser, wget, curl or anything else - shows in the Dynamic Island while
+    # it grows, then as "Downloaded" (click to show it in Files).
+    PARTIAL = (".part", ".crdownload", ".download", ".partial", ".tmp", ".opdownload")
+
+    def _start_downloads(self):
+        home = os.path.expanduser("~")
+        dl = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD) or os.path.join(home, "Downloads")
+        desk = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DESKTOP) or os.path.join(home, "Desktop")
+        dirs = [d for d in dict.fromkeys([dl, desk, home]) if d]
+
+        def fmt(n):
+            for unit in ("B", "KB", "MB", "GB"):
+                if n < 1024 or unit == "GB":
+                    return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+                n /= 1024
+
+        def scan():
+            seen = {}
+            for d in dirs:
+                try:
+                    with os.scandir(d) as it:
+                        for e in it:
+                            if e.name.startswith(".") or not e.is_file(follow_symlinks=False):
+                                continue
+                            st = e.stat(follow_symlinks=False)
+                            seen[e.path] = (st.st_size, st.st_mtime)
+                except OSError:
+                    pass
+            return seen
+
+        def final_name(path):
+            base = os.path.basename(path)
+            for ext in self.PARTIAL:
+                if base.endswith(ext):
+                    base = base[: -len(ext)]
+            return base
+
+        def loop():
+            known = scan()                      # what was already there: ignore
+            active = {}                         # path -> {size, t, still, name, grew}
+            while True:
+                time.sleep(1)
+                now = time.time()
+                cur = scan()
+                for path, (size, mtime) in cur.items():
+                    # browsers create an empty "name" next to "name.part" - follow the .part only
+                    if any((path + ext) in cur for ext in self.PARTIAL):
+                        active.pop(path, None)
+                        continue
+                    partial = path.endswith(self.PARTIAL)
+                    in_dl = os.path.dirname(path) == dirs[0]
+                    if path in active:
+                        a = active[path]
+                        speed = max(0, size - a["size"]) / max(0.5, now - a["t"])
+                        a["still"] = a["still"] + 1 if size == a["size"] else 0
+                        a["grew"] = a["grew"] or size > a["size"]
+                        a.update(size=size, t=now)
+                        if a["grew"] or partial:
+                            self._push_download({"id": a["id"], "name": a["name"], "sub": f"{fmt(size)} · {fmt(speed)}/s" if speed else fmt(size)})
+                    elif now - mtime < 4 and (path not in known or known[path][0] != size):
+                        # new or growing file: a download if it's partial, in Downloads, or keeps growing
+                        active[path] = {"id": "dl" + str(abs(hash(path))), "name": final_name(path), "size": size, "t": now,
+                                        "still": 0, "grew": False, "watch": partial or in_dl}
+                for path in list(active):
+                    a = active[path]
+                    gone = path not in cur
+                    if gone or a["still"] >= 3:
+                        done_path = path
+                        if gone and path.endswith(self.PARTIAL):       # renamed to its real name
+                            target = os.path.join(os.path.dirname(path), a["name"])
+                            done_path = target if os.path.exists(target) else None
+                        if (a["grew"] or a["watch"]) and done_path and not done_path.endswith(self.PARTIAL) \
+                                and os.path.exists(done_path) and os.path.getsize(done_path) > 0:
+                            sz = os.path.getsize(done_path) if os.path.exists(done_path) else a["size"]
+                            self._push_download({"id": a["id"], "name": os.path.basename(done_path), "done": True,
+                                                 "sub": fmt(sz) + " · " + ("Home" if os.path.dirname(done_path) == home else os.path.basename(os.path.dirname(done_path))), "path": done_path})
+                        elif a["grew"] or a["watch"]:
+                            self._push_download({"id": a["id"], "cancel": True})
+                        del active[path]
+                known = cur
+        threading.Thread(target=loop, daemon=True).start()
+
+    def _push_download(self, d):
+        GLib.idle_add(lambda: (self._js(self.ui_view, f"window.shell && shell.download({json.dumps(d)})"), False)[1])
 
     # ---- Now Playing (any MPRIS player: browsers, VLC, Spotify...) ----------
     def _start_media(self):
