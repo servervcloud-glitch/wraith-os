@@ -32,16 +32,16 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
 .ms.fill { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
 
 /* ---------------- wallpaper ---------------- */
-#wallpaper { position: fixed; inset: 0; overflow: hidden; background: var(--wp-base); transition: background .8s var(--emph); }
+#wallpaper { position: fixed; inset: 0; overflow: hidden; transition: background .8s var(--emph);
+  /* soft colour fields from radial gradients: cheap to draw even without a GPU */
+  background:
+    radial-gradient(ellipse 60% 70% at 18% 14%, var(--wp-1) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 65% at 88% 42%, var(--wp-2) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 60% at 46% 108%, var(--wp-3) 0%, transparent 72%),
+    var(--wp-base);
+}
 #wallpaper.image { background-size: cover; background-position: center; }
-#wallpaper.image .blob { display: none; }
-.blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .9; transition: background .8s var(--emph); }
-.b1 { width: 62vw; height: 62vw; left: -12vw; top: -18vw; background: var(--wp-1); animation: drift1 38s ease-in-out infinite alternate; }
-.b2 { width: 55vw; height: 55vw; right: -14vw; top: 8vh; background: var(--wp-2); animation: drift2 44s ease-in-out infinite alternate; }
-.b3 { width: 58vw; height: 58vw; left: 18vw; bottom: -30vw; background: var(--wp-3); animation: drift3 50s ease-in-out infinite alternate; }
-@keyframes drift1 { to { transform: translate(8vw, 6vh) scale(1.08); } }
-@keyframes drift2 { to { transform: translate(-6vw, 10vh) scale(.94); } }
-@keyframes drift3 { to { transform: translate(-10vw, -6vh) scale(1.06); } }
+.blob { display: none; }
 .grain { position: absolute; inset: 0; opacity: .06; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
@@ -182,9 +182,9 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
 .slider .fillbar { position: absolute; inset: 0 auto 0 0; background: var(--primary); border-radius: 24px; transition: width .08s; }
 .slider .ms { position: absolute; left: 16px; top: 14px; color: var(--on-primary); z-index: 2; mix-blend-mode: normal; }
 .slider input { position: absolute; inset: 0; width: 100%; opacity: 0; margin: 0; }
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .tile {
-  display: flex; align-items: center; gap: 12px; height: 68px; padding: 0 14px; text-align: left;
+  display: flex; align-items: center; gap: 12px; height: 68px; padding: 0 14px; text-align: left; min-width: 0;
   border-radius: 34px; background: var(--surface-container-highest); color: var(--on-surface);
   transition: background .35s var(--emph), color .35s var(--emph), border-radius .55s var(--spring), transform .45s var(--spring);
 }
@@ -216,3 +216,14 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
 .win-body { margin: 0; padding: 16px 18px; font: 14px/1.6 "DejaVu Sans Mono", ui-monospace, monospace; color: #d8d2e8; }
 .cursor { color: #c6bfff; animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
+
+/* Real app logos: the logo sits on a glassy light tile (the Soft 3D icon
+   pipeline will pre-render these; this is the live fallback). */
+.icon.logo { background: linear-gradient(160deg, #ffffff, #e4e1ef); }
+.icon.logo img { position: relative; width: 66%; height: 66%; object-fit: contain; border-radius: 0;
+  filter: drop-shadow(0 calc(var(--s) * .02) calc(var(--s) * .03) rgba(0,0,0,.25)); }
+#launch-ghost .ghost-icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+
+/* Inside the OS the shell sits on a transparent layer: there is nothing behind
+   the dock for backdrop-filter to blur, so skip that work. */
+body.in-os #dock { backdrop-filter: none; background: color-mix(in srgb, var(--surface-container) 90%, transparent); }

@@ -60,6 +60,12 @@ log "Rendering boot menu and boot animation assets"
 python3 "$SRC"/branding/render.py --out "$WORK"
 python3 "$SRC"/desktop/cursors/make_cursors.py "$WORK/config/includes.chroot/usr/share/icons"
 
+log "Adding the Wraith desktop shell"
+D="$WORK/config/includes.chroot"
+mkdir -p "$D/usr/share/wraith/shell" "$D/usr/local/bin"
+cp -r "$SRC/desktop/shell/ui" "$SRC/desktop/shell/host" "$D/usr/share/wraith/shell/"
+install -m 755 "$SRC/desktop/shell/host/wraith-shell" "$SRC/desktop/shell/host/wraith-shell-ctl" "$D/usr/local/bin/"
+
 # Skip any package that this Kali snapshot doesn't have, instead of failing
 # the whole build (Kali drops and renames packages over time).
 # Installable = has a real version to install, or another package provides it.

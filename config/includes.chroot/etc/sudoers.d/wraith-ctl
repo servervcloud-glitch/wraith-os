@@ -1,0 +1,2 @@
+# Admins can flip the quick-settings switches without typing a password.
+%sudo ALL=(root) NOPASSWD: /usr/local/sbin/wraith-ctl

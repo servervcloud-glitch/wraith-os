@@ -1,0 +1,25 @@
+#!/bin/bash
+# wraith-ctl - the few system changes the desktop's quick settings make as root.
+# Only these exact actions are accepted (admins may run it without a password,
+# see /etc/sudoers.d/wraith-ctl):
+#   wraith-ctl tor on|off        Tor-only firewall on/off (off is refused in Wraith Live)
+#   wraith-ctl usb lock|unlock   block/allow newly plugged USB devices
+#   wraith-ctl mac on|off        random MAC address per connection on/off
+set -euo pipefail
+MACCONF=/etc/NetworkManager/conf.d/91-wraith-mac-off.conf
+
+case "${1:-} ${2:-}" in
+    "tor on"|"tor off")     exec /usr/local/sbin/wraith-tor "$2" ;;
+    "usb lock"|"usb unlock") exec /usr/local/sbin/wraith-usb "$2" ;;
+    "mac on")
+        rm -f "$MACCONF"
+        systemctl reload NetworkManager 2>/dev/null || true
+        echo "Random MAC: on" ;;
+    "mac off")
+        printf '%s\n' "# Written by wraith-ctl: MAC spoofing turned off in quick settings" \
+            "[device]" "wifi.scan-rand-mac-address=no" "" \
+            "[connection]" "wifi.cloned-mac-address=preserve" "ethernet.cloned-mac-address=preserve" > "$MACCONF"
+        systemctl reload NetworkManager 2>/dev/null || true
+        echo "Random MAC: off" ;;
+    *) echo "usage: wraith-ctl tor on|off | usb lock|unlock | mac on|off" >&2; exit 64 ;;
+esac

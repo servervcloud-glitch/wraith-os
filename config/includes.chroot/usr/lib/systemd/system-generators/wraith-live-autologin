@@ -1,0 +1,12 @@
+#!/bin/sh
+# Wraith Live: log the live user ("wraith") in on tty1 automatically; the
+# desktop then starts from /etc/profile.d/wraith-desktop.sh.
+# Installed systems are untouched (they get a login prompt).
+grep -qw 'boot=live' /proc/cmdline || exit 0
+d="$1/getty@tty1.service.d"
+mkdir -p "$d"
+cat > "$d/wraith-autologin.conf" <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin wraith --noclear %I $TERM
+EOF

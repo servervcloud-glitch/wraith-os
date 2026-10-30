@@ -1,0 +1,13 @@
+#!/bin/bash
+# Starts the Wraith desktop shell (bar, dock, app drawer, quick settings, wallpaper).
+# libgtk4-layer-shell must be loaded before libwayland-client, so preload it.
+lib=$(ldconfig -p | awk '/libgtk4-layer-shell\.so\.0 /{print $NF; exit}')
+[ -n "$lib" ] && export LD_PRELOAD="$lib${LD_PRELOAD:+:$LD_PRELOAD}"
+# Keep running: if the shell ever crashes, bring it back.
+while :; do
+    python3 /usr/share/wraith/shell/host/shell.py "$@"
+    status=$?
+    [ $status -eq 0 ] && exit 0
+    echo "wraith-shell exited ($status), restarting in 1 s" >&2
+    sleep 1
+done

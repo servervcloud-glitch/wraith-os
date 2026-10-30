@@ -10,6 +10,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const params = new URLSearchParams(location.search);
 
 /* ------------------------------------------------------------------ bridge */
+// Inside the OS the host injects window.wraith (see host/shell.py).
 const backend = window.wraith ?? {
   // Preview stand-in; the host replaces this with real system calls.
   async call(name, args) { console.log("[wraith mock]", name, JSON.stringify(args ?? {})); return mock[name]?.(args); },
@@ -18,6 +19,8 @@ const mock = {
   status: () => ({ tor: true, live: true, wifi: true, bluetooth: false, usbguard: true, battery: 82, volume: 55, brightness: 70 }),
 };
 const call = (name, args) => backend.call(name, args);
+const IN_OS = !!window.wraith;
+if (IN_OS) document.body.classList.add("in-os");
 
 /* ------------------------------------------------------------------ spring */
 // Damped spring (same feel as Android's SpringAnimation). Animates 0 -> 1 by default.
@@ -76,7 +79,8 @@ function applyTheme() {
   root.setProperty("--tor-bg", state.tor ? hexFromArgb(MDC.tertiaryContainer.getArgb(scheme)) : hexFromArgb(MDC.errorContainer.getArgb(scheme)));
   root.setProperty("--tor-fg", state.tor ? hexFromArgb(MDC.onTertiaryContainer.getArgb(scheme)) : hexFromArgb(MDC.onErrorContainer.getArgb(scheme)));
   document.documentElement.style.colorScheme = d ? "dark" : "light";
-  call("setCursorTheme", { name: d ? "Wraith" : "Wraith-Black" });
+  const wp = Object.fromEntries([["base", "--wp-base"], ["c1", "--wp-1"], ["c2", "--wp-2"], ["c3", "--wp-3"]].map(([k, v]) => [k, root.getPropertyValue(v)]));
+  call("theme", { dark: d, source: state.source, wallpaper: wp });
 }
 
 // Dynamic colour from a wallpaper image (Material You)
@@ -88,9 +92,9 @@ async function useWallpaper(url) {
 }
 
 /* ------------------------------------------------------------------ apps */
-const CATS = ["All", "Information Gathering", "Vulnerability Analysis", "Web Apps", "Passwords", "Wireless", "Exploitation", "Sniffing & Spoofing", "Forensics", "Reverse Engineering", "System"];
+let CATS = ["All", "Information Gathering", "Vulnerability Analysis", "Web Apps", "Passwords", "Wireless", "Exploitation", "Sniffing & Spoofing", "Forensics", "Reverse Engineering", "System"];
 const G = { v: ["#a79fff", "#5b52e0"], p: ["#ff9ec4", "#d9467f"], o: ["#ffc98a", "#e7782f"], b: ["#8fdcff", "#2f8fd6"], g: ["#8ee6b5", "#25a065"], r: ["#ff9a8f", "#d6453a"], s: ["#c9c6d6", "#6d6a7c"], k: ["#4b4858", "#1d1b24"] };
-const APPS = [
+let APPS = [
   ["Terminal", "terminal", "k", "System", "wraith-terminal"], ["Tor Browser", "travel_explore", "v", "System", "torbrowser-launcher"],
   ["Files", "folder", "b", "System", "files"], ["App Manager", "apps", "g", "System", "wraith-apps"], ["Settings", "settings", "s", "System", "settings"],
   ["Nmap", "radar", "b", "Information Gathering", "nmap"], ["Maltego", "hub", "v", "Information Gathering", "maltego"], ["theHarvester", "mail", "o", "Information Gathering", "theHarvester"],
@@ -103,23 +107,43 @@ const APPS = [
   ["Wireshark", "graphic_eq", "b", "Sniffing & Spoofing", "wireshark"], ["Bettercap", "settings_input_antenna", "p", "Sniffing & Spoofing", "bettercap"], ["Responder", "cell_tower", "v", "Sniffing & Spoofing", "responder"],
   ["Autopsy", "biotech", "g", "Forensics", "autopsy"], ["Volatility", "memory", "s", "Forensics", "volatility3"], ["Binwalk", "unarchive", "o", "Forensics", "binwalk"],
   ["Ghidra", "code_blocks", "r", "Reverse Engineering", "ghidra"], ["Radare2", "data_object", "k", "Reverse Engineering", "radare2"], ["Cutter", "content_cut", "v", "Reverse Engineering", "cutter"],
-].map(([name, glyph, col, cat, exec]) => ({ name, glyph, c: G[col], cat, exec }));
-const DOCK = ["Terminal", "Tor Browser", "Files", "Nmap", "Burp Suite", "Metasploit", "Wireshark"];
+].map(([name, glyph, col, cat, exec]) => ({ id: exec, name, glyph, c: G[col], cats: [cat], exec }));
+let DOCK = ["wraith-terminal", "torbrowser-launcher", "files", "nmap", "burpsuite", "msfconsole", "wireshark"];
+
+// Real apps from the system (.desktop files, Kali menu categories, real icons)
+async function loadApps() {
+  const r = await call("apps");
+  if (!r?.apps?.length) return;
+  const cols = Object.values(G);
+  const hash = (s) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  APPS = r.apps.map((a) => ({ ...a, c: cols[hash(a.id) % cols.length], glyph: a.terminal ? "terminal" : "apps" }));
+  CATS = ["All", ...r.categories];
+  DOCK = r.dock;
+}
 
 function icon(app, size) {
   const el = document.createElement("span");
   el.className = "icon"; if (size) el.style.setProperty("--s", size + "px");
   el.style.setProperty("--c1", app.c[0]); el.style.setProperty("--c2", app.c[1]);
-  el.innerHTML = `<span class="ms fill">${app.glyph}</span>`;
+  if (app.icon) {
+    // real logo on a glassy Soft 3D tile
+    el.classList.add("logo");
+    const img = new Image(); img.src = app.icon; img.alt = ""; img.draggable = false;
+    img.onerror = () => { el.classList.remove("logo"); el.innerHTML = `<span class="ms fill">${app.glyph}</span>`; };
+    el.append(img);
+  } else el.innerHTML = `<span class="ms fill">${app.glyph}</span>`;
   return el;
 }
 
 function buildDock() {
   const box = $("#dock-apps");
-  for (const n of DOCK) {
-    const app = APPS.find((a) => a.name === n);
-    const b = document.createElement("button"); b.className = "app-btn"; b.setAttribute("aria-label", n);
-    b.append(icon(app, 52)); b.insertAdjacentHTML("beforeend", `<span class="tip">${n}</span>`);
+  box.innerHTML = "";
+  for (const id of DOCK) {
+    const app = APPS.find((a) => a.id === id);
+    if (!app) continue;
+    const b = document.createElement("button"); b.className = "app-btn"; b.setAttribute("aria-label", app.name);
+    b.append(icon(app, 52)); b.insertAdjacentHTML("beforeend", `<span class="tip"></span>`);
+    b.querySelector(".tip").textContent = app.name;
     b.onclick = () => launch(app, b.firstChild);
     box.append(b);
   }
@@ -169,10 +193,11 @@ function buildChips() {
 function fillGrid(animate) {
   const q = $("#search").value.trim().toLowerCase(), grid = $("#grid");
   grid.innerHTML = "";
-  const list = APPS.filter((a) => (cat === "All" || a.cat === cat) && (!q || (a.name + " " + a.cat + " " + a.exec).toLowerCase().includes(q)));
+  const list = APPS.filter((a) => (cat === "All" || a.cats.includes(cat)) && (!q || (a.name + " " + (a.comment ?? "") + " " + a.cats.join(" ") + " " + a.id).toLowerCase().includes(q)));
   list.forEach((app, i) => {
     const b = document.createElement("button"); b.className = "cell" + (animate ? " enter" : "");
-    b.append(icon(app)); b.insertAdjacentHTML("beforeend", `<span class="name">${app.name}</span>`);
+    b.append(icon(app)); b.insertAdjacentHTML("beforeend", `<span class="name"></span>`);
+    b.lastChild.textContent = app.name; if (app.comment) b.title = app.comment;
     b.onclick = () => launch(app, b.firstChild);
     grid.append(b);
     if (animate) staggerIn(b, i);
@@ -192,10 +217,22 @@ function staggerIn(el, i) {
 const overlay = $("#overlay"), drawer = $("#drawer"), qs = $("#qs");
 const drawerSpring = new Spring({ stiffness: 300, damping: 27 }), qsSpring = new Spring({ stiffness: 420, damping: 28 });
 
+// Tell the host which parts of the screen take clicks (the rest passes through
+// to the windows underneath) and whether a panel wants the keyboard.
+function syncInput() {
+  if (!IN_OS) return;
+  const rects = [];
+  const add = (el, grow = 0) => { if (!el || el.hidden) return; const r = el.getBoundingClientRect(); rects.push([r.left, r.top - grow, r.width, r.height + grow]); };
+  if (state.open) rects.push([0, 0, innerWidth, innerHeight]);
+  else { add($("#bar")); add($("#dock"), 44); }
+  call("inputRegion", { rects: rects.map((r) => r.map(Math.round)), keyboard: !!state.open });
+}
+addEventListener("resize", syncInput);
+
 function openDrawer() {
   if (state.open === "drawer") return closeAll();
   closeAll(true);
-  state.open = "drawer"; overlay.classList.add("active"); drawer.hidden = false;
+  state.open = "drawer"; overlay.classList.add("active"); drawer.hidden = false; syncInput();
   $("#search").value = ""; fillGrid(true);
   const h = drawer.offsetHeight;
   drawerSpring.to(1, (x) => (drawer.style.transform = `translateY(${(1 - x) * (h + 40)}px)`));
@@ -204,11 +241,11 @@ function openDrawer() {
 function openQS() {
   if (state.open === "qs") return closeAll();
   closeAll(true);
-  state.open = "qs"; overlay.classList.add("active"); qs.hidden = false;
+  state.open = "qs"; overlay.classList.add("active"); qs.hidden = false; syncInput();
   qsSpring.to(1, (x) => { qs.style.opacity = Math.min(1, x * 1.6); qs.style.transform = `scale(${0.82 + 0.18 * x})`; });
 }
 function closeAll(instant) {
-  const was = state.open; state.open = null; overlay.classList.remove("active");
+  const was = state.open; state.open = null; overlay.classList.remove("active"); syncInput();
   if (was === "drawer") {
     const h = drawer.offsetHeight;
     if (instant) { drawerSpring.set(0); drawer.hidden = true; }
@@ -227,11 +264,10 @@ const TILES = [
   { id: "bluetooth", icon: "bluetooth", title: "Bluetooth", sub: (on) => (on ? "On" : "Off") },
   { id: "dark", icon: "dark_mode", title: "Dark theme", sub: (on) => (on ? "On" : "Off") },
   { id: "usbguard", icon: "usb", title: "USB guard", sub: (on) => (on ? "New devices blocked" : "Allowing devices") },
-  { id: "dnd", icon: "do_not_disturb_on", title: "Do not disturb", sub: (on) => (on ? "On" : "Off") },
   { id: "mac", icon: "fingerprint", title: "MAC spoofing", sub: (on) => (on ? "Random each connect" : "Off") },
-  { id: "night", icon: "nightlight", title: "Night light", sub: (on) => (on ? "On" : "Off") },
+  { id: "airplane", icon: "flight", title: "Airplane mode", sub: (on) => (on ? "All radios off" : "Off") },
 ];
-const tileState = { tor: true, wifi: true, bluetooth: false, dark: state.dark, usbguard: true, dnd: false, mac: true, night: false };
+const tileState = { tor: true, wifi: true, bluetooth: false, dark: state.dark, usbguard: true, mac: true, airplane: false };
 
 function buildTiles() {
   const box = $("#tiles"); box.innerHTML = "";
@@ -257,7 +293,14 @@ async function toggleTile(id) {
   if (id === "dark") { state.dark = tileState.dark; applyTheme(); }
   if (id === "tor") { state.tor = tileState.tor; setTorChip(); applyTheme(); }
   renderTiles();
-  call("toggle", { id, on: tileState[id] });
+  const r = await call("toggle", { id, on: tileState[id] });
+  if (r && r.ok === false) {
+    // the system refused: put the tile back and say why
+    tileState[id] = !tileState[id];
+    if (id === "dark") { state.dark = tileState.dark; applyTheme(); }
+    if (id === "tor") { state.tor = tileState.tor; setTorChip(); applyTheme(); }
+    renderTiles(); flash($(`.tile[data-id="${id}"] .tt span`), r.error || "Couldn't change that");
+  }
 }
 function flash(el, text) { const old = el.textContent; el.textContent = text; setTimeout(() => (el.textContent = old), 1600); }
 function setTorChip() {
@@ -274,6 +317,7 @@ function buildSliders() {
       if (lab.dataset.key === "volume") $("#vol-icon").textContent = input.value == 0 ? "volume_off" : input.value < 40 ? "volume_down" : "volume_up";
     };
     input.oninput = () => { update(); call("set", { key: lab.dataset.key, value: +input.value }); };
+    input.addEventListener("sync", update);
     update();
   }
 }
@@ -281,14 +325,14 @@ function buildSliders() {
 /* ------------------------------------------------------------------ app launch */
 // A tile grows out of the tapped icon into the window, like Pixel's app open.
 function launch(app, fromEl) {
-  call("launch", { exec: app.exec });
+  call("launch", { id: app.id });
   const r = fromEl.getBoundingClientRect();
   const W = innerWidth, H = innerHeight;
   const win = { w: Math.min(980, W * 0.68), h: Math.min(620, H * 0.66) };
   win.x = (W - win.w) / 2; win.y = Math.max(64, (H - win.h) / 2 - 30);
   const ghost = $("#launch-ghost");
   ghost.style.setProperty("--c1", app.c[0]); ghost.style.setProperty("--c2", app.c[1]);
-  ghost.innerHTML = `<span class="ms fill">${app.glyph}</span>`;
+  ghost.innerHTML = ""; ghost.append(icon(app, 64)); ghost.firstChild.classList.add("ghost-icon");
   ghost.hidden = false; ghost.style.opacity = 1;
   closeAll();
   const s = new Spring({ stiffness: 260, damping: 25 });
@@ -298,6 +342,11 @@ function launch(app, fromEl) {
     ghost.style.width = Math.max(10, lerp(r.width, win.w, x)) + "px"; ghost.style.height = Math.max(10, lerp(r.height, win.h, x)) + "px";
     ghost.style.borderRadius = lerp(r.width * 0.3, 18, Math.min(1, x)) + "px";
   }, () => {
+    if (IN_OS) {   // the real window is opening underneath: fade the tile into it
+      ghost.style.transition = "opacity .3s"; ghost.style.opacity = 0;
+      setTimeout(() => { ghost.hidden = true; ghost.style.transition = ""; }, 320);
+      return;
+    }
     // Preview only: show the stand-in window, then fade the tile away
     const dw = $("#demo-window");
     Object.assign(dw.style, { left: win.x + "px", top: win.y + "px", width: win.w + "px", height: win.h + "px" });
@@ -317,14 +366,53 @@ function tick() {
   $("#date").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 }
 
+/* ------------------------------------------------------------------ status */
+async function refreshStatus() {
+  const st = (await call("status")) ?? {};
+  state.live = st.live ?? true;
+  if (st.tor !== undefined) state.tor = st.tor;
+  if (st.dark !== undefined && st.dark !== state.dark) { state.dark = st.dark; applyTheme(); }
+  for (const k of ["wifi", "bluetooth", "usbguard", "mac", "airplane"]) if (st[k] !== undefined) tileState[k] = st[k];
+  tileState.tor = state.tor; tileState.dark = state.dark;
+  $("#qs-mode").textContent = state.live ? "Wraith Live" : "Wraith";
+  $("#wifi-icon").textContent = st.wifi === false ? "wifi_off" : st.wifiConnected === false ? "signal_wifi_statusbar_null" : "wifi";
+  const batt = $(".batt");
+  if (st.battery === null) batt.hidden = true;
+  else if (st.battery !== undefined) {
+    batt.hidden = false; $("#batt-pct").textContent = st.battery + "%";
+    $("#batt-icon").textContent = st.charging ? "battery_charging_full" : `battery_${Math.min(6, Math.round(st.battery / 16.7))}_bar`;
+  }
+  for (const [key, v] of [["volume", st.volume], ["brightness", st.brightness]]) {
+    const lab = $(`.slider[data-key="${key}"]`);
+    if (v === null) lab.hidden = true; else if (v !== undefined && document.activeElement !== lab.querySelector("input")) { lab.querySelector("input").value = v; lab.querySelector("input").dispatchEvent(new Event("sync")); }
+  }
+  setTorChip();
+  if ($("#tiles").children.length) renderTiles();
+}
+
 /* ------------------------------------------------------------------ start */
 async function start() {
-  const st = (await call("status")) ?? {};
-  state.tor = st.tor ?? true; state.live = st.live ?? true;
-  Object.assign(tileState, { tor: state.tor, wifi: st.wifi ?? true, bluetooth: !!st.bluetooth, usbguard: st.usbguard ?? true });
-  $("#qs-mode").textContent = state.live ? "Wraith Live" : "Wraith";
+  const surface = params.get("surface") ?? "all";
+  if (surface === "wallpaper") {
+    // background layer: only the wallpaper; the host relays theme changes
+    for (const el of document.querySelectorAll("[data-surface]")) if (el.dataset.surface !== "wallpaper") el.remove();
+    $("#demo-window")?.remove();
+    const st = (await call("status")) ?? {};
+    if (st.dark !== undefined) state.dark = st.dark;
+    if (st.source) state.source = st.source;
+    applyTheme();
+    window.shell = { setTheme: (dark, source) => { state.dark = dark; if (source) state.source = source; applyTheme(); } };
+    return;
+  }
+  if (surface === "ui") {
+    $("#wallpaper").remove(); $("#demo-window").remove();
+    document.body.style.background = "transparent";
+  }
+  await loadApps();
+  await refreshStatus();
   applyTheme(); setTorChip();
   buildDock(); buildChips(); buildTiles(); buildSliders();
+  setInterval(refreshStatus, 10000);
   tick(); setInterval(tick, 1000 * 15);
   $("#drawer-btn").onclick = openDrawer;
   $("#status-pill").onclick = openQS;
@@ -334,10 +422,8 @@ async function start() {
     if (e.key === "Escape") closeAll();
     if (e.key === "Meta" || e.key === "Super") openDrawer();
   });
-  // Each surface (wallpaper, bar, dock, overlay) is its own layer-shell window in the host
-  const surface = params.get("surface");
-  if (surface && surface !== "all") for (const el of document.querySelectorAll("[data-surface]")) if (el.dataset.surface !== surface) el.remove();
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
-  window.shell = { openDrawer, openQS, closeAll, toggleTile, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  window.shell = { openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  requestAnimationFrame(syncInput);
 }
 start();
