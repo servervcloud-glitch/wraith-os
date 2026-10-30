@@ -47,11 +47,11 @@ button { border: 0; background: none; cursor: default; }
 .card h3 { font-size: 13px; font-weight: 600; color: var(--primary); margin: 12px 16px 6px; letter-spacing: .3px; }
 .row { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 10px 16px; border-radius: 18px; }
 .row + .row { border-top: 1px solid color-mix(in srgb, var(--outline-variant) 50%, transparent); border-radius: 0; }
-.row .ic { width: 40px; height: 40px; border-radius: 20px; display: grid; place-items: center; flex: none;
+.row .ic, .ic { width: 40px; height: 40px; border-radius: 20px; display: grid; place-items: center; flex: none;
   background: var(--secondary-container); color: var(--on-secondary-container); }
-.row .txt { flex: 1; min-width: 0; }
-.row .txt b { display: block; font-weight: 600; font-size: 15px; }
-.row .txt span { display: block; color: var(--on-surface-variant); font-size: 13px; }
+.txt { flex: 1; min-width: 0; }
+.txt b { display: block; font-weight: 600; font-size: 15px; }
+.txt span { display: block; color: var(--on-surface-variant); font-size: 13px; }
 .row.click { cursor: default; transition: background .2s; }
 .row.click:hover { background: color-mix(in srgb, var(--on-surface) 5%, transparent); }
 .muted { color: var(--on-surface-variant); }

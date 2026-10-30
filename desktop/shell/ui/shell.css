@@ -217,11 +217,23 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
 .cursor { color: #c6bfff; animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Real app logos: the logo sits on a glassy light tile (the Soft 3D icon
-   pipeline will pre-render these; this is the live fallback). */
-.icon.logo { background: linear-gradient(160deg, #ffffff, #e4e1ef); }
-.icon.logo img { position: relative; width: 66%; height: 66%; object-fit: contain; border-radius: 0;
-  filter: drop-shadow(0 calc(var(--s) * .02) calc(var(--s) * .03) rgba(0,0,0,.25)); }
+/* Real app icons: the original icon, no plate, with a 3D finish. */
+.icon.logo { background: none; box-shadow: none; border-radius: 0; overflow: visible;
+  transform: perspective(240px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .5s var(--spring); }
+.icon.logo::before { display: none; }
+.icon.logo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 0;
+  filter: drop-shadow(0 calc(var(--s) * .025) calc(var(--s) * .02) rgba(0,0,0,.30))
+          drop-shadow(0 calc(var(--s) * .09) calc(var(--s) * .10) rgba(0,0,0,.26)); }
+/* gloss on top, shade at the bottom - clipped to the icon's own outline */
+.icon.logo .gloss { position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: var(--img) center / contain no-repeat; mask: var(--img) center / contain no-repeat;
+  background:
+    radial-gradient(120% 70% at 30% 0%, rgba(255,255,255,.55), rgba(255,255,255,.14) 45%, transparent 62%),
+    linear-gradient(180deg, transparent 52%, rgba(0,0,0,.28) 100%);
+  mix-blend-mode: soft-light; }
+.icon.logo .gloss::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.22), transparent 18%); mix-blend-mode: overlay; }
 #launch-ghost .ghost-icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 
 /* Inside the OS the shell sits on a transparent layer: there is nothing behind

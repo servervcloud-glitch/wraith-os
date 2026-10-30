@@ -92,6 +92,13 @@ async function useWallpaper(url) {
 }
 
 /* ------------------------------------------------------------------ apps */
+// Preview only (plain browser): real icons copied from Kali, so the preview shows true icons.
+const PREVIEW_ICON = (exec) => {
+  const f = { "wraith-terminal": "foot", "torbrowser-launcher": "torbrowser", files: "org.gnome.Nautilus", "wraith-apps": "system-software-install",
+    settings: "org.gnome.Settings", msfconsole: "kali-metasploit-framework", "gvm-start": "kali-openvas", "beef-xss": "kali-beef-xss-start",
+    theHarvester: "theharvester", "volatility3": "kali-volatility", cutter: "cutter" }[exec] ?? "kali-" + exec;
+  return window.wraith ? null : `preview/icons/${f}.svg`;
+};
 let CATS = ["All", "Information Gathering", "Vulnerability Analysis", "Web Apps", "Passwords", "Wireless", "Exploitation", "Sniffing & Spoofing", "Forensics", "Reverse Engineering", "System"];
 const G = { v: ["#a79fff", "#5b52e0"], p: ["#ff9ec4", "#d9467f"], o: ["#ffc98a", "#e7782f"], b: ["#8fdcff", "#2f8fd6"], g: ["#8ee6b5", "#25a065"], r: ["#ff9a8f", "#d6453a"], s: ["#c9c6d6", "#6d6a7c"], k: ["#4b4858", "#1d1b24"] };
 let APPS = [
@@ -107,7 +114,7 @@ let APPS = [
   ["Wireshark", "graphic_eq", "b", "Sniffing & Spoofing", "wireshark"], ["Bettercap", "settings_input_antenna", "p", "Sniffing & Spoofing", "bettercap"], ["Responder", "cell_tower", "v", "Sniffing & Spoofing", "responder"],
   ["Autopsy", "biotech", "g", "Forensics", "autopsy"], ["Volatility", "memory", "s", "Forensics", "volatility3"], ["Binwalk", "unarchive", "o", "Forensics", "binwalk"],
   ["Ghidra", "code_blocks", "r", "Reverse Engineering", "ghidra"], ["Radare2", "data_object", "k", "Reverse Engineering", "radare2"], ["Cutter", "content_cut", "v", "Reverse Engineering", "cutter"],
-].map(([name, glyph, col, cat, exec]) => ({ id: exec, name, glyph, c: G[col], cats: [cat], exec }));
+].map(([name, glyph, col, cat, exec]) => ({ id: exec, name, glyph, c: G[col], cats: [cat], exec, icon: PREVIEW_ICON(exec) }));
 let DOCK = ["wraith-terminal", "torbrowser-launcher", "files", "nmap", "burpsuite", "msfconsole", "wireshark"];
 
 // Real apps from the system (.desktop files, Kali menu categories, real icons)
@@ -126,11 +133,14 @@ function icon(app, size) {
   el.className = "icon"; if (size) el.style.setProperty("--s", size + "px");
   el.style.setProperty("--c1", app.c[0]); el.style.setProperty("--c2", app.c[1]);
   if (app.icon) {
-    // real logo on a glassy Soft 3D tile
+    // The app's own icon exactly as it ships - no tile or plate behind it -
+    // with a 3D finish: gloss and shading clipped to the icon's own shape,
+    // a layered shadow, and a slight tilt towards the cursor.
     el.classList.add("logo");
+    el.style.setProperty("--img", `url("${app.icon}")`);
     const img = new Image(); img.src = app.icon; img.alt = ""; img.draggable = false;
     img.onerror = () => { el.classList.remove("logo"); el.innerHTML = `<span class="ms fill">${app.glyph}</span>`; };
-    el.append(img);
+    el.append(img, Object.assign(document.createElement("i"), { className: "gloss" }));
   } else el.innerHTML = `<span class="ms fill">${app.glyph}</span>`;
   return el;
 }
@@ -212,6 +222,17 @@ function staggerIn(el, i) {
       () => { el.style.transition = ""; el.style.transform = ""; });
   }, Math.min(i, 24) * 14);
 }
+
+// 3D tilt: the icon under the pointer leans towards it a little
+addEventListener("pointermove", (e) => {
+  const el = e.target.closest?.(".icon.logo");
+  if (el !== tiltEl) { tiltEl?.style.removeProperty("--rx"); tiltEl?.style.removeProperty("--ry"); tiltEl = el; }
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--ry", (((e.clientX - r.left) / r.width - 0.5) * 18).toFixed(1) + "deg");
+  el.style.setProperty("--rx", ((0.5 - (e.clientY - r.top) / r.height) * 18).toFixed(1) + "deg");
+}, { passive: true });
+let tiltEl = null;
 
 /* ------------------------------------------------------------------ panels */
 const overlay = $("#overlay"), drawer = $("#drawer"), qs = $("#qs");

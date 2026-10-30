@@ -10,7 +10,7 @@ export function useMock(mock) { mockBackend = mock; }
 
 export async function call(name, args = {}) {
   if (IN_OS) return window.wraith.call(name, args);
-  if (name === "theme") return { dark: new URLSearchParams(location.search).get("theme") !== "light", source: "#6a5ff0" };
+  if (name === "theme" && !mockBackend?.theme) return { dark: new URLSearchParams(location.search).get("theme") !== "light", source: "#6a5ff0" };
   const fn = mockBackend?.[name];
   return fn ? fn(args, emitLocal) : null;
 }

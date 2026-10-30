@@ -64,6 +64,7 @@ log "Adding the Wraith desktop shell"
 D="$WORK/config/includes.chroot"
 mkdir -p "$D/usr/share/wraith/shell" "$D/usr/local/bin"
 cp -r "$SRC/desktop/shell/ui" "$SRC/desktop/shell/host" "$D/usr/share/wraith/shell/"
+rm -rf "$D/usr/share/wraith/shell/ui/preview"     # preview-only sample icons
 install -m 755 "$SRC/desktop/shell/host/wraith-shell" "$SRC/desktop/shell/host/wraith-shell-ctl" "$D/usr/local/bin/"
 
 # Skip any package that this Kali snapshot doesn't have, instead of failing
