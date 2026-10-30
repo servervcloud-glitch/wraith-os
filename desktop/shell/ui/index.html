@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wraith Shell</title>
+<link rel="stylesheet" href="shell.css">
+</head>
+<body>
+  <!-- Wallpaper (background layer) -->
+  <div id="wallpaper" data-surface="wallpaper" aria-hidden="true">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="grain"></div>
+  </div>
+
+  <!-- Top bar -->
+  <header id="bar" data-surface="bar">
+    <div class="bar-left">
+      <span id="clock" class="clock">12:00</span>
+      <span id="date" class="date">Mon, Jan 1</span>
+    </div>
+    <button id="status-pill" class="status-pill" aria-label="Quick settings">
+      <span id="tor-chip" class="tor-chip"><span class="ms fill">shield_lock</span><span class="tor-text">Tor</span></span>
+      <span class="ms" id="wifi-icon">wifi</span>
+      <span class="ms" id="vol-icon">volume_up</span>
+      <span class="batt"><span class="ms" id="batt-icon">battery_5_bar</span><span id="batt-pct">82%</span></span>
+    </button>
+  </header>
+
+  <!-- Dock -->
+  <nav id="dock" data-surface="dock" aria-label="Favourites">
+    <div id="dock-apps" class="dock-apps"></div>
+    <span class="dock-sep"></span>
+    <button id="drawer-btn" class="dock-btn" aria-label="All apps"><span class="ms">apps</span></button>
+  </nav>
+
+  <!-- Overlay layer: scrim, app drawer, quick settings, launch animation -->
+  <div id="overlay" data-surface="overlay">
+    <div id="scrim"></div>
+
+    <section id="drawer" aria-label="All apps" hidden>
+      <div class="handle"></div>
+      <div class="search">
+        <span class="ms">search</span>
+        <input id="search" placeholder="Search apps and tools" autocomplete="off">
+      </div>
+      <div id="chips" class="chips"></div>
+      <div id="grid" class="grid"></div>
+    </section>
+
+    <section id="qs" aria-label="Quick settings" hidden>
+      <div class="qs-head">
+        <div class="avatar">W</div>
+        <div class="who"><b>wraith</b><span id="qs-mode">Wraith Live</span></div>
+        <button class="round" id="lock-btn" aria-label="Lock"><span class="ms">lock</span></button>
+        <button class="round" id="power-btn" aria-label="Power"><span class="ms">power_settings_new</span></button>
+      </div>
+      <div class="sliders">
+        <label class="slider" data-key="brightness"><span class="ms">light_mode</span><input type="range" min="0" max="100" value="70"></label>
+        <label class="slider" data-key="volume"><span class="ms">volume_up</span><input type="range" min="0" max="100" value="55"></label>
+      </div>
+      <div id="tiles" class="tiles"></div>
+    </section>
+
+    <div id="launch-ghost" hidden></div>
+  </div>
+
+  <!-- Preview only: a stand-in for a real app window (the compositor shows real ones) -->
+  <div id="demo-window" hidden>
+    <div class="win-title"><span class="ms">terminal</span><span>Wraith Terminal</span><span class="win-dots"><i></i><i></i><i></i></span></div>
+    <pre class="win-body">wraith@wraith:~$ sudo wraith-tor status
+on
+wraith@wraith:~$ nmap -sV scanme.nmap.org
+Starting Nmap 7.95 ( https://nmap.org )
+Nmap scan report for scanme.nmap.org
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 6.6.1p1
+80/tcp   open  http    Apache httpd 2.4.7
+<span class="cursor">▍</span></pre>
+  </div>
+
+  <script type="module" src="shell.js"></script>
+</body>
+</html>
