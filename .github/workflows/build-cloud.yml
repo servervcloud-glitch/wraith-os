@@ -1,11 +1,10 @@
-name: Build Wraith OS (cloud, encrypted)
+name: Build Wraith OS (cloud)
 
 # Builds the ISO on GitHub's own machines (free and unlimited for public
-# repos), so the home PC isn't needed. The finished ISO is encrypted BEFORE it
-# is uploaded, to the public key in keys/wraith-iso-public.asc (safe to be
-# public: it can only lock). Only the owner's unlock file (never in the repo)
-# can open it - no passphrase to mistype. Then it's split into parts under
-# 2 GB and attached to a GitHub Release.
+# repos), so the home PC isn't needed. GitHub release files are limited to
+# 2 GB each, so the ISO is split into parts; one command joins them back
+# into a single ISO (see the release notes). Not encrypted: while the repo
+# is public, anyone can download it.
 on:
   workflow_dispatch:
 
@@ -72,45 +71,41 @@ jobs:
           ls -lh /build/out
           df -h /build
 
-      - name: Encrypt (to the owner's key) and split into parts under 2 GB
+      - name: Split into parts under 2 GB (GitHub's limit per release file)
         run: |
-          KEY="$GITHUB_WORKSPACE/src/keys/wraith-iso-public.asc"
-          if [ ! -s "$KEY" ]; then
-            echo "::error::keys/wraith-iso-public.asc is missing - refusing to publish an unencrypted ISO."
-            exit 1
-          fi
-          export GNUPGHOME=$(mktemp -d)
-          gpg --batch --import "$KEY"
-          FPR=$(gpg --batch --with-colons --list-keys | awk -F: '/^fpr/{print $10; exit}')
           cd /build/out
           ISO=$(ls -1 wraith-*.iso | head -n1)
           NAME="${ISO%.iso}"
           echo "NAME=$NAME" >> "$GITHUB_ENV"
-          gpg --batch --yes --trust-model always --recipient "$FPR" --compress-algo none \
-              --encrypt -o - "$ISO" | split -b 1900M -d -a 2 - "$NAME.iso.gpg.part"
-          rm -f "$ISO" "$ISO.sha256"
-          sha256sum "$NAME".iso.gpg.part* > "$NAME.parts.sha256"
+          sha256sum "$ISO" > "$NAME.iso.sha256"          # checksum of the joined ISO
+          split -b 1900M -d -a 2 "$ISO" "$ISO.part"
+          rm -f "$ISO"
           ls -lh
 
-      - name: Publish the encrypted parts as a release
+      - name: Publish the parts as a release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd /build/out
           TAG="build-$(date -u +%Y%m%d-%H%M)"
           cat > notes.md <<EOF
-          Encrypted Wraith OS ISO. Unusable without the owner's unlock key file.
+          Wraith OS ISO, split into parts (GitHub allows at most 2 GB per file).
 
-          To use it, download every \`.part\` file and the \`.parts.sha256\` file into one folder, then in Ubuntu/WSL or Linux:
+          Download every \`.part\` file and \`$NAME.iso.sha256\` into one folder, then join them into a single ISO.
 
-          \`\`\`bash
-          sha256sum -c $NAME.parts.sha256
-          gpg --import wraith-iso-unlock-key.asc
-          gpg -d -o $NAME.iso <(cat $NAME.iso.gpg.part*)
+          **Windows** (PowerShell, in that folder):
+          \`\`\`
+          cmd /c copy /b $NAME.iso.part* $NAME.iso
           \`\`\`
 
-          Then use \`$NAME.iso\` in a VM or write it to a 32 GB+ USB stick.
+          **Linux / WSL:**
+          \`\`\`
+          cat $NAME.iso.part* > $NAME.iso
+          \`\`\`
+
+          Check it (optional): the SHA256 of \`$NAME.iso\` must match \`$NAME.iso.sha256\`
+          (Windows: \`Get-FileHash $NAME.iso\`).
           EOF
           sed -i 's/^          //' notes.md
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Wraith OS $TAG (encrypted)" \
-            --notes-file notes.md "$NAME".iso.gpg.part* "$NAME.parts.sha256"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Wraith OS $TAG" \
+            --notes-file notes.md "$NAME".iso.part* "$NAME.iso.sha256"
