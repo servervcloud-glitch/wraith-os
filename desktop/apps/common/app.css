@@ -1,0 +1,118 @@
+/* Wraith apps - shared Material You styling (colours set by app.js from the
+   desktop theme). */
+@font-face { font-family: Figtree; src: url(../vendor/Figtree.ttf); font-weight: 300 900; }
+@font-face { font-family: "Material Symbols Rounded"; src: url(../vendor/material-symbols-rounded.woff2) format("woff2"); font-weight: 100 700; }
+
+:root { --spring: cubic-bezier(.34, 1.56, .64, 1); --emph: cubic-bezier(.2, 0, 0, 1); }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { font: 14px/1.45 Figtree, system-ui, sans-serif; color: var(--on-surface); background: var(--surface);
+  -webkit-font-smoothing: antialiased; transition: background .4s var(--emph), color .4s var(--emph); }
+button, input, select { font: inherit; color: inherit; }
+button { border: 0; background: none; cursor: default; }
+.ms { font-family: "Material Symbols Rounded"; font-weight: 400; font-style: normal; font-size: 22px; line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; display: inline-block; white-space: nowrap; }
+.ms.fill { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
+::selection { background: var(--primary-container); color: var(--on-primary-container); }
+::-webkit-scrollbar { width: 10px; } ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 5px; border: 3px solid transparent; background-clip: padding-box; }
+
+/* ---- window frame ---- */
+.frame { display: grid; grid-template-rows: 52px 1fr; height: 100%; }
+.titlebar { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 20px; }
+.titlebar h1 { font-size: 16px; font-weight: 600; margin: 0; flex: 1; }
+.wbtn { width: 34px; height: 34px; border-radius: 17px; display: grid; place-items: center; color: var(--on-surface-variant);
+  transition: background .2s, border-radius .4s var(--spring); }
+.wbtn:hover { background: color-mix(in srgb, var(--on-surface) 8%, transparent); border-radius: 11px; }
+.wbtn.close:hover { background: var(--error-container); color: var(--on-error-container); }
+
+/* ---- navigation rail + content ---- */
+.body { display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
+.nav { padding: 6px 12px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.nav button { display: flex; align-items: center; gap: 14px; height: 50px; padding: 0 18px; border-radius: 25px; text-align: left;
+  font-weight: 500; color: var(--on-surface-variant); transition: background .25s var(--emph), color .25s; }
+.nav button:hover { background: color-mix(in srgb, var(--on-surface) 6%, transparent); }
+.nav button.on { background: var(--secondary-container); color: var(--on-secondary-container); }
+.nav button.on .ms { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
+.nav .badge { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; font-size: 12px; font-weight: 700;
+  display: grid; place-items: center; background: var(--primary); color: var(--on-primary); }
+.content { overflow-y: auto; padding: 4px 28px 40px 8px; min-height: 0; }
+.page { max-width: 760px; margin: 0 auto; animation: pageIn .45s var(--emph); }
+@keyframes pageIn { from { opacity: 0; transform: translateY(14px); } }
+.page > h2 { font-size: 30px; font-weight: 600; margin: 8px 0 18px; letter-spacing: -.3px; }
+
+/* ---- cards and list rows ---- */
+.card { background: var(--surface-container); border-radius: 24px; padding: 6px; margin-bottom: 14px; }
+.card.pad { padding: 20px 22px; }
+.card h3 { font-size: 13px; font-weight: 600; color: var(--primary); margin: 12px 16px 6px; letter-spacing: .3px; }
+.row { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 10px 16px; border-radius: 18px; }
+.row + .row { border-top: 1px solid color-mix(in srgb, var(--outline-variant) 50%, transparent); border-radius: 0; }
+.row .ic { width: 40px; height: 40px; border-radius: 20px; display: grid; place-items: center; flex: none;
+  background: var(--secondary-container); color: var(--on-secondary-container); }
+.row .txt { flex: 1; min-width: 0; }
+.row .txt b { display: block; font-weight: 600; font-size: 15px; }
+.row .txt span { display: block; color: var(--on-surface-variant); font-size: 13px; }
+.row.click { cursor: default; transition: background .2s; }
+.row.click:hover { background: color-mix(in srgb, var(--on-surface) 5%, transparent); }
+.muted { color: var(--on-surface-variant); }
+.note { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 18px; margin-bottom: 14px;
+  background: var(--tertiary-container); color: var(--on-tertiary-container); font-size: 13.5px; }
+.note.warn { background: var(--error-container); color: var(--on-error-container); }
+
+/* ---- buttons ---- */
+.btn { height: 42px; padding: 0 22px; border-radius: 21px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+  background: var(--primary); color: var(--on-primary); transition: transform .4s var(--spring), border-radius .4s var(--spring), filter .2s, opacity .2s; }
+.btn:hover { border-radius: 14px; filter: brightness(1.06); }
+.btn:active { transform: scale(.95); }
+.btn.tonal { background: var(--secondary-container); color: var(--on-secondary-container); }
+.btn.text { background: none; color: var(--primary); padding: 0 14px; }
+.btn.text:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.btn.danger { background: var(--error); color: var(--on-error); }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+.btn .ms { font-size: 20px; }
+
+/* ---- M3 switch ---- */
+.switch { position: relative; width: 52px; height: 32px; flex: none; border-radius: 16px; border: 2px solid var(--outline);
+  background: var(--surface-container-highest); transition: background .25s, border-color .25s; }
+.switch::after { content: ""; position: absolute; left: 6px; top: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--outline);
+  transition: left .35s var(--spring), width .35s var(--spring), height .35s var(--spring), top .35s var(--spring), background .25s; }
+.switch.on { background: var(--primary); border-color: var(--primary); }
+.switch.on::after { left: 22px; top: 2px; width: 24px; height: 24px; background: var(--on-primary); }
+.switch:active::after { width: 28px; height: 28px; top: 0; }
+.switch[disabled] { opacity: .5; pointer-events: none; }
+
+/* ---- inputs ---- */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field label { font-size: 12.5px; font-weight: 600; color: var(--on-surface-variant); padding-left: 4px; }
+.input { height: 52px; padding: 0 18px; border-radius: 16px; border: 2px solid transparent; outline: none;
+  background: var(--surface-container-highest); transition: border-color .2s; width: 100%; }
+.input:focus { border-color: var(--primary); }
+
+/* ---- chips / segmented ---- */
+.seg { display: inline-flex; border: 1px solid var(--outline); border-radius: 20px; overflow: hidden; }
+.seg button { height: 38px; padding: 0 16px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.seg button + button { border-left: 1px solid var(--outline); }
+.seg button.on { background: var(--secondary-container); color: var(--on-secondary-container); }
+
+/* ---- wavy progress (same as the boot screen) ---- */
+.wave { position: relative; height: 14px; width: 100%; }
+.wave svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.wave .track { stroke: var(--secondary-container); stroke-width: 4; stroke-linecap: round; fill: none; }
+.wave .bar { stroke: var(--primary); stroke-width: 4; stroke-linecap: round; fill: none; }
+
+/* ---- dialog + snackbar ---- */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; z-index: 50; animation: fadeIn .25s; }
+@keyframes fadeIn { from { opacity: 0; } }
+.dialog { width: min(440px, 92vw); border-radius: 28px; padding: 24px; background: var(--surface-container-high);
+  animation: dlgIn .45s var(--spring); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+@keyframes dlgIn { from { opacity: 0; transform: scale(.88); } }
+.dialog .dic { color: var(--secondary); text-align: center; margin-bottom: 8px; } .dialog .dic .ms { font-size: 28px; }
+.dialog h4 { font-size: 22px; font-weight: 500; margin: 0 0 10px; text-align: center; }
+.dialog p { margin: 0 0 18px; color: var(--on-surface-variant); }
+.dialog .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.dialog .err { color: var(--error); font-size: 13px; min-height: 18px; margin: -6px 0 6px 4px; }
+.snack { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60; padding: 14px 20px; border-radius: 14px;
+  background: var(--inverse-surface); color: var(--inverse-on-surface); box-shadow: 0 8px 30px rgba(0,0,0,.3); animation: snackIn .45s var(--spring); }
+@keyframes snackIn { from { opacity: 0; transform: translate(-50%, 20px); } }
+
+.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }

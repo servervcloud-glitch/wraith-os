@@ -224,7 +224,7 @@ function syncInput() {
   const rects = [];
   const add = (el, grow = 0) => { if (!el || el.hidden) return; const r = el.getBoundingClientRect(); rects.push([r.left, r.top - grow, r.width, r.height + grow]); };
   if (state.open) rects.push([0, 0, innerWidth, innerHeight]);
-  else { add($("#bar")); add($("#dock"), 44); }
+  else { add($("#bar")); add($("#dock"), 44); rects.push(island.box); }
   call("inputRegion", { rects: rects.map((r) => r.map(Math.round)), keyboard: !!state.open });
 }
 addEventListener("resize", syncInput);
@@ -294,6 +294,8 @@ async function toggleTile(id) {
   if (id === "tor") { state.tor = tileState.tor; setTorChip(); applyTheme(); }
   renderTiles();
   const r = await call("toggle", { id, on: tileState[id] });
+  if (id === "tor" && r?.ok !== false) island.alert(state.tor ? { icon: "shield_lock", title: "Tor is on", sub: "All traffic goes through Tor", accent: "#9be6b4" }
+                                                  : { icon: "public", title: "Direct connection", sub: "Traffic no longer goes through Tor", accent: "#ffb4ab" });
   if (r && r.ok === false) {
     // the system refused: put the tile back and say why
     tileState[id] = !tileState[id];
@@ -317,6 +319,7 @@ function buildSliders() {
       if (lab.dataset.key === "volume") $("#vol-icon").textContent = input.value == 0 ? "volume_off" : input.value < 40 ? "volume_down" : "volume_up";
     };
     input.oninput = () => { update(); call("set", { key: lab.dataset.key, value: +input.value }); };
+    input.addEventListener("input", () => { if (!state.open) osd(lab.dataset.key, +input.value); });
     input.addEventListener("sync", update);
     update();
   }
@@ -366,6 +369,163 @@ function tick() {
   $("#date").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 }
 
+/* ------------------------------------------------------------------ dynamic island */
+// A black pill in the bar that springs open for live activities (Tor connecting,
+// installs, Now Playing), short alerts (USB blocked, battery) and the volume /
+// brightness level. Ongoing activities sit compact; hover or click to expand.
+//
+// How the morph stays smooth: one spring drives the pill's width and height;
+// every content layer is laid out at its own final size and centred, so the
+// pill just reveals or covers it (no reflow), and layers cross-fade with a
+// short delay on the way in and a quick fade on the way out.
+const island = (() => {
+  const el = $("#island"), q = (s) => el.querySelector(s);
+  const layers = { compact: q(".isl-compact"), full: q(".isl-full"), player: q(".isl-player") };
+  const sw = new Spring({ stiffness: 380, damping: 30 }), sh = new Spring({ stiffness: 380, damping: 31 });
+  sw.set(118); sh.set(30);
+  const ongoing = new Map();
+  let alertAct = null, alertTimer = 0, hover = false, pinned = false, target = { w: 118, h: 30 }, media = null;
+  // privacy dots: camera green, microphone yellow, location blue
+  const PRIV = { camera: ["#34c759", "videocam", "Camera"], mic: ["#ffd60a", "mic", "Microphone"], location: ["#0a84ff", "location_on", "Location"] };
+  let priv = { camera: [], mic: [], location: [] };
+  const dots = () => Object.keys(PRIV).filter((k) => priv[k].length)
+    .map((k) => `<span class="isl-pdot" style="background:${PRIV[k][0]};box-shadow:0 0 6px ${PRIV[k][0]}"></span>`).join("");
+
+  const paint = () => {
+    el.style.width = sw.x.toFixed(2) + "px"; el.style.height = sh.x.toFixed(2) + "px";
+    el.style.borderRadius = Math.min(sh.x / 2, 32).toFixed(2) + "px";
+  };
+  const morph = (w, h) => {
+    if (w === target.w && h === target.h) return;
+    target = { w, h };
+    sw.to(w, paint); sh.to(h, paint);
+    syncInput();
+  };
+  const showLayer = (name, w, h) => {
+    for (const [n, l] of Object.entries(layers)) {
+      if (n === name) { l.style.width = w + "px"; if (h) l.style.height = h + "px"; }
+      l.classList.toggle("show", n === name);
+    }
+  };
+  const ring = (a) => `<span class="isl-ring" style="--p:${a.progress}"></span>`;
+  const fmt = (us) => { const s = Math.max(0, Math.round((us || 0) / 1e6)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+  function fillFull(a) {
+    layers.full.style.setProperty("--isl-accent", a.accent || "#c6bfff");
+    q(".isl-icon").innerHTML = `<span class="ms fill ${a.spin ? "isl-spin" : ""}">${a.icon || "info"}</span>`;
+    q(".isl-title").textContent = a.title || ""; q(".isl-sub").textContent = a.sub || "";
+    q(".isl-side").textContent = a.side ?? (a.progress != null ? Math.round(a.progress * 100) + "%" : "");
+    layers.full.classList.toggle("has-bar", a.progress != null);
+    q(".isl-bar i").style.width = ((a.progress ?? 0) * 100) + "%";
+  }
+  function fillPlayer() {
+    const art = q(".pl-art");
+    art.style.backgroundImage = media.art ? `url("${media.art}")` : "";
+    art.innerHTML = media.art ? "" : '<span class="ms fill">music_note</span>';
+    q(".pl-title").textContent = media.title || "Unknown title";
+    q(".pl-artist").textContent = media.artist || media.player || "";
+    q(".pl-pp .ms").textContent = media.playing ? "pause" : "play_arrow";
+    el.classList.toggle("playing", !!media.playing);
+    tickMedia();
+  }
+  function tickMedia() {
+    if (!media) return;
+    const pos = media.position + (media.playing ? (performance.now() - media.at) * 1000 : 0);
+    const len = media.length || 0;
+    q(".pl-pos").textContent = fmt(Math.min(pos, len || pos)); q(".pl-len").textContent = len ? fmt(len) : "--:--";
+    q(".pl-track i").style.width = len ? Math.min(100, pos / len * 100) + "%" : "0%";
+  }
+  setInterval(() => { if (media?.playing && target.h > 100) tickMedia(); }, 500);
+
+  function compactFor(a) {
+    let lead, trail, label = a.short ?? a.title ?? "";
+    if (a.kind === "media") {
+      lead = `<span class="isl-thumb" style="${media?.art ? `background-image:url('${media.art}')` : ""}"></span>`;
+      trail = `<span class="isl-eq" style="--eq:#c6bfff"><i></i><i></i><i></i><i></i></span>`;
+      label = "";
+    } else {
+      lead = (a.progress != null ? ring(a) : `<span class="ms fill ${a.spin ? "isl-spin" : ""}">${a.icon}</span>`) + `<span>${label}</span>`;
+      trail = a.progress != null ? `<span>${Math.round(a.progress * 100)}%</span>` : `<span class="isl-dot"></span>`;
+    }
+    layers.compact.style.setProperty("--isl-accent", a.accent || "#c6bfff");
+    q(".isl-lead").innerHTML = lead; q(".isl-trail").innerHTML = trail + dots();
+    // measure the natural width once, then lay the layer out at that size
+    layers.compact.style.width = "auto";
+    const w = a.kind === "media" ? 150 : Math.max(150, Math.ceil(layers.compact.scrollWidth) + 2);
+    return w;
+  }
+
+  function render() {
+    const ordered = [...ongoing.values()];
+    // progress activities (Tor, installs) outrank Now Playing
+    const top = alertAct ?? ordered.filter((a) => a.kind !== "media").at(-1) ?? ordered.at(-1);
+    const expanded = !!alertAct || ((hover || pinned) && !!top);
+    if (expanded && top.kind === "media") {
+      fillPlayer(); showLayer("player", 400, 186); morph(400, 186);
+    } else if (expanded) {
+      fillFull(top);
+      const w = top.wide ?? 380, h = top.progress != null ? 92 : 72;
+      showLayer("full", w, h); morph(w, h);
+    } else if (top) {
+      const w = compactFor(top); showLayer("compact", w); morph(w, 30);
+    } else {
+      // idle: Tor state on the left, a quiet dot on the right
+      const c = state.tor ? "#9be6b4" : "#ffb4ab";
+      q(".isl-lead").innerHTML = `<span class="ms fill" style="color:${c}">${state.tor ? "shield_lock" : "public"}</span>`;
+      const d = dots();
+      q(".isl-trail").innerHTML = d || `<span class="isl-dot" style="--isl-accent:${c}"></span>`;
+      const w = d ? 118 + 12 * (d.match(/isl-pdot/g).length - 1) : 118;
+      showLayer("compact", w); morph(w, 30);
+    }
+  }
+  el.addEventListener("mouseenter", () => { hover = true; render(); });
+  el.addEventListener("mouseleave", () => { hover = false; render(); });
+  el.addEventListener("click", (e) => {
+    const btn = e.target.closest(".pl-ctrl button");
+    if (btn) { e.stopPropagation(); call("media", { action: btn.dataset.act }); return; }
+    const top = alertAct ?? [...ongoing.values()].at(-1);
+    if (top?.onclick) top.onclick(); else { pinned = !pinned; render(); }
+  });
+  return {
+    /** start or update an ongoing activity */
+    set(id, act) { ongoing.set(id, { ...(ongoing.get(id) ?? {}), ...act }); render(); },
+    /** finish an ongoing activity, optionally with a short alert */
+    end(id, doneAlert) { ongoing.delete(id); if (doneAlert) this.alert(doneAlert); else render(); },
+    /** show something briefly, expanded */
+    alert(act, ms = 2600) {
+      alertAct = act; clearTimeout(alertTimer);
+      alertTimer = setTimeout(() => { alertAct = null; render(); }, ms);
+      render();
+    },
+    /** Now Playing: {title, artist, art, playing, position (us), length (us), player} or null */
+    media(m) {
+      if (!m || !m.title) { media = null; el.classList.remove("playing"); this.end("media"); return; }
+      media = { ...m, at: performance.now() };
+      el.classList.toggle("playing", !!m.playing);
+      if (target.h > 100) fillPlayer();
+      this.set("media", { kind: "media", title: m.title });
+    },
+    /** which apps use the camera / microphone / location right now */
+    privacy(p) {
+      const prev = priv; priv = { camera: p.camera ?? [], mic: p.mic ?? [], location: p.location ?? [] };
+      for (const k of Object.keys(PRIV)) {
+        if (priv[k].length && !prev[k].length) {      // just turned on: say who
+          const [col, ic, label] = PRIV[k];
+          this.alert({ icon: ic, title: `${label} on`, sub: priv[k].join(", "), accent: col }, 2600);
+          return;
+        }
+      }
+      render();
+    },
+    render,
+    get box() { return [innerWidth / 2 - target.w / 2 - 8, 0, target.w + 16, target.h + 14]; },
+  };
+})();
+function osd(kind, value) {
+  const icons = { volume: value == 0 ? "volume_off" : value < 40 ? "volume_down" : "volume_up", brightness: "light_mode" };
+  island.alert({ icon: icons[kind], title: kind === "volume" ? "Volume" : "Brightness", progress: value / 100, wide: 320 }, 1400);
+}
+
 /* ------------------------------------------------------------------ status */
 async function refreshStatus() {
   const st = (await call("status")) ?? {};
@@ -388,6 +548,25 @@ async function refreshStatus() {
   }
   setTorChip();
   if ($("#tiles").children.length) renderTiles();
+  // live activities from the system
+  if (state.tor && st.torBootstrap != null && st.torBootstrap < 100) {
+    island.set("tor", { icon: "shield_lock", title: "Connecting to Tor", short: "Tor", sub: st.torPhase || "Building a private circuit", progress: st.torBootstrap / 100, accent: "#c6bfff" });
+    state.torWasConnecting = true;
+  } else if (state.torWasConnecting) {
+    state.torWasConnecting = false;
+    island.end("tor", { icon: "verified_user", title: "Connected to Tor", sub: "You're browsing privately", accent: "#9be6b4" });
+  }
+  if (st.usbBlocked && st.usbBlocked !== state.lastUsb) {
+    state.lastUsb = st.usbBlocked;
+    island.alert({ icon: "usb_off", title: "USB device blocked", sub: st.usbBlocked, accent: "#ffb4ab" }, 4000);
+  }
+  if (st.battery != null && !st.charging && st.battery <= 15 && !state.lowWarned) {
+    state.lowWarned = true;
+    island.alert({ icon: "battery_alert", title: "Battery low", sub: `${st.battery}% left - plug in soon`, accent: "#ffb4ab" }, 4000);
+  }
+  if (st.charging && state.wasCharging === false) island.alert({ icon: "battery_charging_full", title: "Charging", side: st.battery + "%", accent: "#9be6b4", wide: 300 }, 2200);
+  state.wasCharging = !!st.charging;
+  if (st.charging) state.lowWarned = false;
 }
 
 /* ------------------------------------------------------------------ start */
@@ -423,7 +602,8 @@ async function start() {
     if (e.key === "Meta" || e.key === "Super") openDrawer();
   });
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
-  window.shell = { openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  island.render();
+  window.shell = { island, osd, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
   requestAnimationFrame(syncInput);
 }
 start();

@@ -31,6 +31,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import urllib.parse
 import xml.etree.ElementTree as ET
 
@@ -66,6 +67,7 @@ RENAME = {"foot": "Terminal", "org.codeberg.dnkl.foot": "Terminal", "org.gnome.N
 HIDE = {"footclient", "foot-server", "org.codeberg.dnkl.footclient", "org.codeberg.dnkl.foot-server",
         "org.freedesktop.Xwayland", "root-terminal", "display-im7.q16", "python3.14", "texdoctk"}
 KALI_MENU = "/etc/xdg/menus/applications-merged/kali-applications.menu"
+LIVE_STATUS = "/run/wraith/desktop-status.json"   # written by wraith-status-watch (root)
 
 
 def run(cmd, timeout=8):
@@ -267,13 +269,25 @@ class Backend:
                 st["battery"] = None
         else:
             st["battery"] = None
-        ok, out = run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
-        m = re.search(r"([\d.]+)", out) if ok else None
-        st["volume"] = round(float(m.group(1)) * 100) if m else None
+        st["volume"], st["brightness"] = self.level("volume"), self.level("brightness")
+        try:  # Tor progress and blocked USB devices, for the Dynamic Island
+            with open(LIVE_STATUS) as fh:
+                live = json.load(fh)
+            st.update({k: live.get(k) for k in ("torBootstrap", "torPhase", "usbBlocked", "usbEvent")})
+        except (OSError, ValueError):
+            pass
+        return st
+
+    @staticmethod
+    def level(kind):
+        """Current volume or screen brightness in %, or None if the machine has none."""
+        if kind == "volume":
+            ok, out = run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+            m = re.search(r"([\d.]+)", out) if ok else None
+            return 0 if ok and "MUTED" in out else round(float(m.group(1)) * 100) if m else None
         ok, out = run(["brightnessctl", "-c", "backlight", "-m"])
         m = re.search(r",(\d+)%,", out) if ok else None
-        st["brightness"] = int(m.group(1)) if m else None
-        return st
+        return int(m.group(1)) if m else None
 
     @staticmethod
     def _rfkill():
@@ -357,6 +371,12 @@ class Backend:
         except OSError as e:
             return {"ok": False, "error": str(e)}
 
+    def media(self, a):
+        act = a.get("action")
+        if act in ("play-pause", "next", "previous"):
+            run(["playerctl", act])
+        return {"ok": True}
+
     def power(self, a):
         act = a.get("action")
         cmd = {"lock": ["hyprlock"], "logout": ["hyprctl", "dispatch", "exit"],
@@ -370,7 +390,7 @@ class Backend:
         return {"ok": True}
 
     CALLS = {"status": status, "toggle": toggle, "set": set, "theme": theme, "apps": apps_,
-             "launch": launch, "power": power, "inputRegion": inputRegion}
+             "launch": launch, "power": power, "media": media, "inputRegion": inputRegion}
 
     def call(self, name, args):
         fn = self.CALLS.get(name)
@@ -552,6 +572,11 @@ class Host:
         self.ui_win.connect("map", lambda w: GLib.idle_add(self.set_input, [], False))
         self.ui_win.present()
         self._start_socket()
+        self._start_media()
+        self._start_privacy()
+        # refresh the shell as soon as Tor / USB guard report something
+        self._live_mon = Gio.File.new_for_path(LIVE_STATUS).monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self._live_mon.connect("changed", lambda *a: self._js(self.ui_view, "window.shell && shell.refreshStatus()"))
 
     # ---- page <-> host -------------------------------------------------------
     def _on_message(self, _ucm, value, view):
@@ -591,6 +616,86 @@ class Host:
             self.ui_view.grab_focus()
         return False
 
+    # ---- Now Playing (any MPRIS player: browsers, VLC, Spotify...) ----------
+    def _start_media(self):
+        fmt = "{{status}}\t{{playerName}}\t{{title}}\t{{artist}}\t{{mpris:artUrl}}\t{{position}}\t{{mpris:length}}"
+
+        def loop():
+            while True:
+                try:
+                    p = subprocess.Popen(["playerctl", "--follow", "metadata", "--format", fmt],
+                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                except OSError:
+                    return                      # playerctl not installed
+                for line in p.stdout:
+                    GLib.idle_add(self._push_media, self._parse_media(line))
+                p.wait()
+                GLib.idle_add(self._push_media, None)
+                time.sleep(2)
+        threading.Thread(target=loop, daemon=True).start()
+
+    def _parse_media(self, line):
+        f = line.rstrip("\n").split("\t")
+        if len(f) < 7 or not f[2].strip():
+            return None                         # player closed or nothing playing
+        status, player, title, artist, art, pos, length = f[:7]
+        if art.startswith("file://"):
+            path = urllib.parse.unquote(art[7:])
+            if os.path.isfile(path):
+                self.backend.apps.allowed_icon_files.add(path)
+                art = "wraith://icon" + urllib.parse.quote(path)
+            else:
+                art = ""
+        elif not art.startswith("https://"):
+            art = ""
+        num = lambda v: int(v) if v.strip().isdigit() else 0
+        return {"title": title, "artist": artist, "player": player.split(".")[0].capitalize(), "art": art,
+                "playing": status == "Playing", "position": num(pos), "length": num(length)}
+
+    # ---- privacy dots: camera (green), microphone (yellow), location (blue) ----
+    def _start_privacy(self):
+        def mic_users():
+            ok, out = run(["pw-dump"], timeout=5)
+            if not ok:
+                return []
+            try:
+                nodes = json.loads(out)
+            except ValueError:
+                return []
+            users = set()
+            for n in nodes:
+                info = n.get("info") or {}
+                props = info.get("props") or {}
+                if props.get("media.class") == "Stream/Input/Audio" and info.get("state") == "running":
+                    users.add(props.get("application.name") or props.get("node.name") or "An app")
+            return sorted(users)
+
+        def location_in_use():
+            ok, out = run(["gdbus", "call", "--system", "--dest", "org.freedesktop.GeoClue2",
+                           "--object-path", "/org/freedesktop/GeoClue2/Manager", "--method",
+                           "org.freedesktop.DBus.Properties.Get", "org.freedesktop.GeoClue2.Manager", "InUse"], timeout=3)
+            return ["An app"] if ok and "true" in out else []
+
+        def loop():
+            last = None
+            while True:
+                cam = []
+                try:
+                    with open(LIVE_STATUS) as fh:
+                        cam = json.load(fh).get("camera") or []
+                except (OSError, ValueError):
+                    pass
+                now = {"camera": cam, "mic": mic_users(), "location": location_in_use()}
+                if now != last:
+                    last = now
+                    GLib.idle_add(lambda d=now: (self._js(self.ui_view, f"window.shell && shell.privacy({json.dumps(d)})"), False)[1])
+                time.sleep(1.5)
+        threading.Thread(target=loop, daemon=True).start()
+
+    def _push_media(self, m):
+        self._js(self.ui_view, f"window.shell && shell.media({json.dumps(m)})")
+        return False
+
     # ---- wraith-shell-ctl ----------------------------------------------------
     def _start_socket(self):
         try:
@@ -609,6 +714,10 @@ class Host:
                     cmd = conn.recv(64).decode(errors="ignore").strip()
                 js = {"drawer": "shell.openDrawer()", "qs": "shell.openQS()", "close": "shell.closeAll()",
                       "refresh": "shell.refreshStatus()"}.get(cmd)
+                if cmd in ("osd-volume", "osd-brightness"):     # volume / brightness keys
+                    kind = cmd[4:]
+                    v = self.backend.level(kind)
+                    js = f"shell.osd({json.dumps(kind)}, {json.dumps(v)})" if v is not None else None
                 if js:
                     GLib.idle_add(lambda s=js: (self._js(self.ui_view, f"window.shell && {s}"), False)[1])
         threading.Thread(target=loop, daemon=True).start()

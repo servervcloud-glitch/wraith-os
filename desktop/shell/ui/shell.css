@@ -227,3 +227,71 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
 /* Inside the OS the shell sits on a transparent layer: there is nothing behind
    the dock for backdrop-filter to blur, so skip that work. */
 body.in-os #dock { backdrop-filter: none; background: color-mix(in srgb, var(--surface-container) 90%, transparent); }
+
+/* ---------------- Dynamic Island ---------------- */
+/* The pill's size is animated by a spring in shell.js. Each content layer is
+   laid out at its own final size and centred, so the pill simply reveals it as
+   it grows - nothing inside reflows while the shape morphs. */
+.island {
+  position: absolute; left: 50%; top: 5px; transform: translateX(-50%);
+  width: 118px; height: 30px; border-radius: 15px; overflow: hidden; z-index: 30;
+  background: #000; color: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.28);
+  will-change: width, height; contain: layout paint;
+}
+.isl-layer { position: absolute; top: 0; left: 50%; transform: translateX(-50%) scale(.94); transform-origin: 50% 0;
+  opacity: 0; pointer-events: none; transition: opacity .12s linear, transform .3s var(--emph); }
+.isl-layer.show { opacity: 1; transform: translateX(-50%) scale(1); pointer-events: auto;
+  transition: opacity .2s linear .07s, transform .42s var(--spring) .03s; }
+
+.isl-compact { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; gap: 14px; white-space: nowrap; }
+.isl-lead, .isl-trail { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+.isl-lead .ms, .isl-trail .ms { font-size: 17px; }
+.isl-thumb { width: 20px; height: 20px; border-radius: 6px; background: #2a2830 center / cover; }
+
+.isl-full { display: grid; grid-template-columns: 44px 1fr auto; grid-template-rows: 44px auto; align-items: center;
+  column-gap: 14px; padding: 14px 18px 0; }
+.isl-icon { width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; background: #2a2830; color: var(--isl-accent, #c6bfff); }
+.isl-icon .ms { font-size: 24px; }
+.isl-text { display: flex; flex-direction: column; min-width: 0; }
+.isl-title { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.isl-sub { font-size: 12.5px; color: #b9b4c6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.isl-side { font-size: 15px; font-weight: 700; color: var(--isl-accent, #c6bfff); font-variant-numeric: tabular-nums; }
+.isl-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; margin-top: 12px; background: #2a2830; overflow: hidden; }
+.isl-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--isl-accent, #c6bfff); transition: width .35s var(--emph); }
+.isl-full:not(.has-bar) .isl-bar { display: none; }
+.isl-ring { width: 16px; height: 16px; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--isl-accent, #c6bfff) calc(var(--p, 0) * 1turn), #3a3741 0); -webkit-mask: radial-gradient(circle, transparent 4.5px, #000 5px); }
+.isl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--isl-accent, #9be6b4); box-shadow: 0 0 8px var(--isl-accent, #9be6b4); }
+.isl-spin { animation: islspin 1s linear infinite; } @keyframes islspin { to { transform: rotate(360deg); } }
+
+/* Now Playing */
+.isl-player { display: grid; grid-template-columns: 64px 1fr auto; grid-template-rows: 64px auto auto; column-gap: 14px;
+  padding: 16px 18px 0; }
+.pl-art { width: 64px; height: 64px; border-radius: 14px; background: #2a2830 center / cover; display: grid; place-items: center; color: #8f8a9c; }
+.pl-meta { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.pl-title { font-size: 15.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-artist { font-size: 13px; color: #b9b4c6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-time { grid-column: 1 / -1; display: grid; grid-template-columns: 38px 1fr 38px; align-items: center; gap: 8px; margin-top: 12px;
+  font-size: 11.5px; color: #b9b4c6; font-variant-numeric: tabular-nums; }
+.pl-time .pl-len { text-align: right; }
+.pl-track { height: 5px; border-radius: 3px; background: #2a2830; overflow: hidden; }
+.pl-track i { display: block; height: 100%; width: 0; background: #fff; border-radius: 3px; }
+.pl-ctrl { grid-column: 1 / -1; display: flex; justify-content: center; gap: 22px; margin-top: 6px; }
+.pl-ctrl button { width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; color: #fff;
+  transition: background .2s, transform .35s var(--spring); }
+.pl-ctrl button:hover { background: #2a2830; }
+.pl-ctrl button:active { transform: scale(.88); }
+.pl-ctrl .ms { font-size: 30px; }
+.pl-ctrl .pl-pp .ms { font-size: 38px; }
+/* moving sound bars (still when paused) */
+.pl-eq, .isl-eq { display: flex; align-items: flex-end; gap: 2px; height: 16px; align-self: center; }
+.pl-eq { height: 22px; gap: 3px; }
+.pl-eq i, .isl-eq i { width: 3px; height: 100%; border-radius: 2px; background: var(--eq, #c6bfff); transform-origin: bottom; transform: scaleY(.3); }
+.playing .pl-eq i, .playing .isl-eq i { animation: eq .9s ease-in-out infinite alternate; }
+.playing .pl-eq i:nth-child(2), .playing .isl-eq i:nth-child(2) { animation-duration: .7s; animation-delay: -.3s; }
+.playing .pl-eq i:nth-child(3), .playing .isl-eq i:nth-child(3) { animation-duration: 1.1s; animation-delay: -.6s; }
+.playing .pl-eq i:nth-child(4), .playing .isl-eq i:nth-child(4) { animation-duration: .8s; animation-delay: -.2s; }
+@keyframes eq { 0% { transform: scaleY(.25); } 100% { transform: scaleY(1); } }
+.isl-pdot { width: 7px; height: 7px; border-radius: 50%; flex: none; animation: pdotIn .45s var(--spring); }
+.isl-trail .isl-pdot + .isl-pdot { margin-left: -2px; }
+@keyframes pdotIn { from { transform: scale(0); } }

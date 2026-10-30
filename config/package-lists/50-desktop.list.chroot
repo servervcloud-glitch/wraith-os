@@ -27,6 +27,8 @@ rfkill
 upower
 brightnessctl
 wl-clipboard
+playerctl
+libglib2.0-bin
 grim
 slurp
 qt6-wayland

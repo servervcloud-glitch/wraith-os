@@ -1,0 +1,21 @@
+#!/bin/bash
+# wraith-account - admin password for Settings and the Welcome screen (run via sudo).
+#   wraith-account setpass          new password for the calling user, read from stdin
+#   wraith-account require-password admin actions ask for the password from now on
+#                                   (Wraith Live starts without one)
+set -euo pipefail
+user=${SUDO_USER:-}
+[ -n "$user" ] && [ "$user" != root ] || { echo "run through sudo as the desktop user" >&2; exit 64; }
+case "${1:-}" in
+    setpass)
+        IFS= read -r pw
+        [ ${#pw} -ge 8 ] || { echo "Password must be at least 8 characters" >&2; exit 65; }
+        printf '%s:%s\n' "$user" "$pw" | chpasswd ;;
+    require-password)
+        # drop "NOPASSWD: ALL" grants (live-config gives the live user one); keep wraith-ctl
+        for f in /etc/sudoers.d/*; do
+            [ -f "$f" ] && grep -qE 'NOPASSWD:[[:space:]]*ALL' "$f" && rm -f "$f"
+        done
+        exit 0 ;;
+    *) echo "usage: wraith-account setpass | require-password" >&2; exit 64 ;;
+esac

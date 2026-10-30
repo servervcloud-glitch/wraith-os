@@ -1,0 +1,130 @@
+#!/usr/bin/python3
+"""wraith-pkg - package actions for Settings > System update and App Manager.
+Run as root (the apps use sudo with the admin password). Prints one line per
+event so the apps can show live progress:
+
+  P <percent> <text>     progress
+  J <json>               data (lists)
+  E <text>               error message
+  DONE <exit code>
+
+  wraith-pkg refresh                 download the latest package lists
+  wraith-pkg upgradable              list available updates (JSON, grouped)
+  wraith-pkg upgrade                 install all updates
+  wraith-pkg install PKG [PKG...]    install packages
+  wraith-pkg remove PKG [PKG...]     remove packages
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+NAME = re.compile(r"^[a-z0-9][a-z0-9+.-]{0,99}$")
+# The "Tails side": Tor and the privacy / hardening pieces Wraith uses
+PRIVACY = re.compile(r"^(tor|tor-geoipdb|torsocks|torbrowser-launcher|obfs4proxy|snowflake-client|onionshare.*|python3-stem|"
+                     r"nftables|libnftables.*|apparmor.*|libapparmor.*|usbguard.*|macchanger|secure-delete|"
+                     r"libpam-pwquality|network-manager.*|keepassxc.*|mat2|metadata-cleaner)$")
+ENV = dict(os.environ, DEBIAN_FRONTEND="noninteractive", LC_ALL="C.UTF-8")
+DPKG_OPTS = ["-o", "Dpkg::Options::=--force-confdef", "-o", "Dpkg::Options::=--force-confold"]
+
+
+def out(*parts):
+    print(*parts, flush=True)
+
+
+def group(pkg, section):
+    if pkg.startswith("wraith"):
+        return "Wraith"
+    if PRIVACY.match(pkg):
+        return "Tor & privacy"
+    return "Kali tools & system"
+
+
+def apt_with_progress(args, label):
+    """Run apt-get, turning its status channel into P lines."""
+    r, w = os.pipe()
+    p = subprocess.Popen(["apt-get", "-y", "-q", "-o", f"APT::Status-Fd={w}", *DPKG_OPTS, *args],
+                         pass_fds=(w,), env=ENV, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    os.close(w)
+    errors = []
+
+    def read_status():
+        with os.fdopen(r) as fh:
+            for line in fh:
+                parts = line.rstrip("\n").split(":", 3)
+                if len(parts) == 4 and parts[0] in ("dlstatus", "pmstatus"):
+                    try:
+                        pct = float(parts[2])
+                    except ValueError:
+                        continue
+                    stage = "Downloading" if parts[0] == "dlstatus" else label
+                    # downloads are the first half of the bar, installing the second
+                    total = pct / 2 if parts[0] == "dlstatus" else 50 + pct / 2
+                    if args[0] == "update":
+                        total = pct
+                    out("P", f"{total:.1f}", f"{stage}: {parts[3]}")
+                elif parts[0] == "pmerror":
+                    errors.append(line.strip())
+    import threading
+    t = threading.Thread(target=read_status, daemon=True)
+    t.start()
+    for line in p.stdout:
+        line = line.strip()
+        if line.startswith(("E:", "W:")) or "Err:" in line:
+            out("E", line)
+    p.wait()
+    t.join(timeout=5)
+    for e in errors:
+        out("E", e)
+    return p.returncode
+
+
+def upgradable():
+    res = subprocess.run(["apt-get", "-s", "-q", *DPKG_OPTS, "full-upgrade"], capture_output=True, text=True, env=ENV)
+    pkgs = []
+    # "Inst name [old] (new repo [arch])"  /  new installs have no [old]
+    for m in re.finditer(r"^Inst (\S+) (?:\[(\S+)\] )?\((\S+) ([^)]*)\)", res.stdout, re.M):
+        name, old, new, repo = m.group(1), m.group(2), m.group(3), m.group(4)
+        pkgs.append({"name": name, "from": old, "to": new, "new": old is None, "group": group(name, "")})
+    removes = re.findall(r"^Remv (\S+)", res.stdout, re.M)
+    size = ""
+    m = re.search(r"Need to get ([\d.,]+ \w+)", subprocess.run(
+        ["apt-get", "--assume-no", "full-upgrade"], capture_output=True, text=True, env=ENV).stdout)
+    if m:
+        size = m.group(1)
+    kernel = any(p["name"].startswith(("linux-image", "linux-firmware")) for p in pkgs)
+    out("J", json.dumps({"packages": pkgs, "removes": removes, "download": size, "restart": kernel}))
+    return 0
+
+
+def main():
+    if os.geteuid() != 0:
+        sys.exit("wraith-pkg must run as root")
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    cmd, pkgs = sys.argv[1], sys.argv[2:]
+    if any(not NAME.match(p) for p in pkgs):
+        out("E", "Invalid package name")
+        out("DONE", 2)
+        return
+    if cmd == "refresh":
+        rc = apt_with_progress(["update"], "Checking")
+    elif cmd == "upgradable":
+        rc = upgradable()
+    elif cmd == "upgrade":
+        rc = apt_with_progress(["full-upgrade"], "Installing")
+        if rc == 0:
+            subprocess.run(["apt-get", "-y", "-q", "autoremove"], env=ENV, capture_output=True)
+    elif cmd == "install" and pkgs:
+        rc = apt_with_progress(["install", *pkgs], "Installing")
+    elif cmd == "remove" and pkgs:
+        rc = apt_with_progress(["remove", *pkgs], "Removing")
+    else:
+        out("E", "Unknown action")
+        rc = 2
+    out("DONE", rc)
+
+
+if __name__ == "__main__":
+    main()

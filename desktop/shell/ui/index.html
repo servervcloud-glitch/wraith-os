@@ -19,6 +19,27 @@
       <span id="clock" class="clock">12:00</span>
       <span id="date" class="date">Mon, Jan 1</span>
     </div>
+    <!-- Dynamic Island: live activities morph out of this pill -->
+    <div id="island" class="island" role="status" aria-live="polite">
+      <div class="isl-layer isl-compact"><span class="isl-lead"></span><span class="isl-trail"></span></div>
+      <div class="isl-layer isl-full">
+        <span class="isl-icon"></span>
+        <span class="isl-text"><b class="isl-title"></b><span class="isl-sub"></span></span>
+        <span class="isl-side"></span>
+        <div class="isl-bar"><i></i></div>
+      </div>
+      <div class="isl-layer isl-player">
+        <div class="pl-art"></div>
+        <div class="pl-meta"><b class="pl-title"></b><span class="pl-artist"></span></div>
+        <div class="pl-eq"><i></i><i></i><i></i><i></i></div>
+        <div class="pl-time"><span class="pl-pos">0:00</span><div class="pl-track"><i></i></div><span class="pl-len">0:00</span></div>
+        <div class="pl-ctrl">
+          <button data-act="previous" aria-label="Previous"><span class="ms fill">skip_previous</span></button>
+          <button data-act="play-pause" class="pl-pp" aria-label="Play or pause"><span class="ms fill">pause</span></button>
+          <button data-act="next" aria-label="Next"><span class="ms fill">skip_next</span></button>
+        </div>
+      </div>
+    </div>
     <button id="status-pill" class="status-pill" aria-label="Quick settings">
       <span id="tor-chip" class="tor-chip"><span class="ms fill">shield_lock</span><span class="tor-text">Tor</span></span>
       <span class="ms" id="wifi-icon">wifi</span>

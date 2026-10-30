@@ -1,0 +1,193 @@
+#!/usr/bin/python3
+"""wraith-app NAME - window host for Wraith's own apps (settings, apps, terminal, welcome).
+
+Each app is plain HTML/CSS/JS in /usr/share/wraith/apps/NAME plus an optional
+backend.py with a `Backend(emit)` class. The page calls backend methods with
+window.wraith.call(name, args) -> Promise; the backend pushes events to the page
+with emit(name, data) (received by window.wraithEvent).
+
+One WebView per process (WebKit only sizes the first view of a process).
+"""
+import importlib.util
+import json
+import mimetypes
+import os
+import sys
+import threading
+import urllib.parse
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+gi.require_version("WebKit", "6.0")
+from gi.repository import Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
+
+ROOT = os.environ.get("WRAITH_APPS_DIR", "/usr/share/wraith/apps")
+VENDOR = os.environ.get("WRAITH_VENDOR_DIR", "/usr/share/wraith/shell/ui/vendor")
+SHELL_CONF = os.path.join(GLib.get_user_config_dir(), "wraith", "shell.json")
+
+APPS = {  # name: (window title, app id, default size)
+    "settings": ("Settings", "os.wraith.Settings", (1060, 720)),
+    "apps": ("App Manager", "os.wraith.Apps", (1100, 740)),
+    "terminal": ("Terminal", "os.wraith.Terminal", (980, 620)),
+    "welcome": ("Welcome to Wraith", "os.wraith.Welcome", (900, 640)),
+}
+
+BRIDGE_JS = """
+window.wraith = {
+  _n: 0, _p: {},
+  call(name, args) {
+    return new Promise((res) => {
+      const id = ++this._n; this._p[id] = res;
+      window.webkit.messageHandlers.wraith.postMessage(JSON.stringify({ id, name, args: args ?? {} }));
+    });
+  },
+  _reply(id, value) { const r = this._p[id]; delete this._p[id]; if (r) r(value); },
+};
+"""
+
+
+def read_theme():
+    try:
+        with open(SHELL_CONF) as fh:
+            c = json.load(fh)
+        return {"dark": c.get("dark", True), "source": c.get("source") or "#6a5ff0"}
+    except Exception:
+        return {"dark": True, "source": "#6a5ff0"}
+
+
+class AppWindow:
+    def __init__(self, gtk_app, name, page_args):
+        self.name = name
+        title, _, size = APPS[name]
+        self.win = Gtk.ApplicationWindow(application=gtk_app, title=title)
+        self.win.set_default_size(*size)
+        self.win.set_decorated(False)          # the page draws its own header
+        self.backend = self._load_backend()
+        ctx = WebKit.WebContext.get_default()
+        ctx.register_uri_scheme("wraith", self._serve)
+        sec = ctx.get_security_manager()
+        sec.register_uri_scheme_as_secure("wraith")
+        sec.register_uri_scheme_as_cors_enabled("wraith")
+        ucm = WebKit.UserContentManager()
+        ucm.add_script(WebKit.UserScript.new(BRIDGE_JS, WebKit.UserContentInjectedFrames.TOP_FRAME,
+                                             WebKit.UserScriptInjectionTime.START, None, None))
+        ucm.register_script_message_handler("wraith", None)
+        ucm.connect("script-message-received::wraith", self._on_message)
+        self.view = WebKit.WebView(user_content_manager=ucm)
+        s = self.view.get_settings()
+        debug = os.environ.get("WRAITH_APP_DEBUG") == "1"
+        s.set_enable_developer_extras(debug)
+        s.set_enable_write_console_messages_to_stdout(debug)
+        th = read_theme()
+        bg = (0.08, 0.07, 0.10) if th["dark"] else (0.97, 0.96, 0.99)
+        self.view.set_background_color(Gdk.RGBA(red=bg[0], green=bg[1], blue=bg[2], alpha=1))
+        if not debug:
+            self.view.connect("context-menu", lambda *a: True)
+        q = urllib.parse.urlencode(page_args)
+        self.view.load_uri(f"wraith://app/{name}/index.html" + (f"?{q}" if q else ""))
+        self.win.set_child(self.view)
+        # follow theme changes made in quick settings
+        self._mon = Gio.File.new_for_path(SHELL_CONF).monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self._mon.connect("changed", lambda *a: self.emit("theme", read_theme()))
+        self.win.connect("close-request", self._on_close)
+        self.win.present()
+
+    def _load_backend(self):
+        path = os.path.join(ROOT, self.name, "backend.py")
+        if not os.path.isfile(path):
+            return None
+        spec = importlib.util.spec_from_file_location(f"wraith_{self.name}_backend", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.Backend(self.emit_threadsafe)
+
+    # ---- files ----------------------------------------------------------------
+    def _serve(self, req):
+        uri = GLib.Uri.parse(req.get_uri(), GLib.UriFlags.NONE)
+        host, path = uri.get_host(), urllib.parse.unquote(uri.get_path() or "/").lstrip("/")
+        base = ROOT if host == "app" else None
+        if base and path.startswith("vendor/"):      # shared fonts / colour library from the shell
+            base, path = VENDOR, path[len("vendor/"):]
+        fp = os.path.realpath(os.path.join(base, path)) if base else ""
+        if not base or not fp.startswith(os.path.realpath(base) + os.sep) or not os.path.isfile(fp):
+            req.finish_error(GLib.Error.new_literal(Gio.io_error_quark(), "not found", int(Gio.IOErrorEnum.NOT_FOUND)))
+            return
+        mime = "text/javascript" if fp.endswith(".js") else mimetypes.guess_type(fp)[0] or "application/octet-stream"
+        req.finish(Gio.File.new_for_path(fp).read(None), os.path.getsize(fp), mime)
+
+    # ---- page <-> backend -----------------------------------------------------
+    def _on_message(self, _ucm, value):
+        try:
+            msg = json.loads(value.to_string())
+        except Exception:
+            return
+        name, args, cid = msg.get("name"), msg.get("args") or {}, msg.get("id")
+
+        def work():
+            if name == "theme":
+                result = read_theme()
+            elif name == "close":
+                GLib.idle_add(self.win.close)
+                result = True
+            elif name == "minimize":
+                GLib.idle_add(self.win.minimize)
+                result = True
+            elif self.backend and not name.startswith("_") and callable(getattr(self.backend, name, None)):
+                try:
+                    result = getattr(self.backend, name)(args)
+                except Exception as e:  # report, don't crash the window
+                    print(f"wraith-app {self.name}: {name} failed: {e}", file=sys.stderr)
+                    result = {"ok": False, "error": str(e)}
+            else:
+                result = None
+            GLib.idle_add(self._js, f"window.wraith._reply({int(cid or 0)}, {json.dumps(result)})")
+        threading.Thread(target=work, daemon=True).start()
+
+    def _js(self, script):
+        self.view.evaluate_javascript(script, -1, None, None, None, None, None)
+        return False
+
+    def emit(self, event, data=None):
+        self._js(f"window.wraithEvent && window.wraithEvent({json.dumps(event)}, {json.dumps(data)})")
+        return False
+
+    def emit_threadsafe(self, event, data=None):
+        GLib.idle_add(self.emit, event, data)
+
+    def _on_close(self, *_):
+        if self.backend and hasattr(self.backend, "shutdown"):
+            self.backend.shutdown()
+        return False
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] not in APPS:
+        sys.exit("usage: wraith-app settings|apps|terminal|welcome [key=value ...]")
+    name = sys.argv[1]
+    page_args = dict(a.split("=", 1) for a in sys.argv[2:] if "=" in a)
+    # A second launch of the same app brings the open window forward
+    flags = Gio.ApplicationFlags.HANDLES_COMMAND_LINE
+    if name == "terminal":
+        flags |= Gio.ApplicationFlags.NON_UNIQUE   # every terminal is its own window
+    app = Gtk.Application(application_id=APPS[name][1], flags=flags)
+    state = {}
+
+    def on_cmd(a, cmdline):
+        argv = cmdline.get_arguments()
+        args = dict(x.split("=", 1) for x in argv[2:] if "=" in x)
+        if "win" in state:
+            state["win"].win.present()
+            if args:
+                state["win"].emit("args", args)
+        else:
+            state["win"] = AppWindow(a, name, args or page_args)
+        return 0
+
+    app.connect("command-line", on_cmd)
+    return app.run(sys.argv)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

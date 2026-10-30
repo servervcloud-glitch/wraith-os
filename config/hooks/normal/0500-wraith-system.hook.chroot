@@ -26,6 +26,7 @@ systemctl enable wraith-firewall.service
 systemctl enable wraith-live-guard.service
 systemctl enable wraith-boot-status.service
 systemctl enable wraith-display-fit.service
+systemctl enable wraith-status-watch.service
 systemctl enable tor.service
 systemctl enable NetworkManager.service
 systemctl disable nftables.service 2>/dev/null || true
