@@ -81,7 +81,7 @@ jobs:
           # Heartbeat: some steps (compressing the ISO) print nothing for a long
           # time, so show a line every 5 minutes to prove the build is alive.
           ( while docker inspect -f '{{.State.Running}}' wraith-build 2>/dev/null | grep -q true; do
-              sleep 300; echo "[wraith] still working... $(date -u +%H:%M) UTC, work tree $(du -sh "$HOME/wraith/work" 2>/dev/null | cut -f1)"
+              sleep 300; echo "[wraith] still working... $(date -u +%H:%M) UTC"
             done ) &
           docker logs -f wraith-build &
           code=$(docker wait wraith-build)
