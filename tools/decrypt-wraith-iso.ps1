@@ -67,7 +67,8 @@ if ($useWsl) {
     if ($free -lt $total + 1GB) { throw "Not enough free space: need about $([math]::Ceiling(($total + 1GB) / 1GB)) GB." }
     $wdir = (wsl.exe -e wslpath -a "$dir").Trim()
     Say "`nDecrypting with Ubuntu (WSL). Type your WRAITH_ISO_KEY when asked (nothing shows while you type)."
-    $cmd = "cd '$wdir' && cat '$name'.iso.gpg.part* | gpg --pinentry-mode loopback --decrypt --output '$name.iso'"
+    # data via process substitution, so gpg's stdin stays free for the passphrase prompt
+    $cmd = "cd '$wdir' && gpg --yes --pinentry-mode loopback --decrypt --output '$name.iso' <(cat '$name'.iso.gpg.part*)"
     wsl.exe -e bash -c $cmd
     if ($LASTEXITCODE -ne 0) { if (Test-Path $iso) { Remove-Item $iso }; throw 'Decryption failed (wrong passphrase?).' }
 } else {
