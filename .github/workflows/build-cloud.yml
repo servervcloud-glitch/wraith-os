@@ -1,0 +1,109 @@
+name: Build Wraith OS (cloud, encrypted)
+
+# Builds the ISO on GitHub's own machines (free and unlimited for public
+# repos), so the home PC isn't needed. The finished ISO is encrypted with
+# AES-256 using the WRAITH_ISO_KEY secret BEFORE it is uploaded, then split
+# into parts under 2 GB and attached to a GitHub Release. Without the
+# passphrase the download is unusable. If the secret is missing, the build
+# refuses to start, so an unencrypted ISO can never be published.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: wraith-cloud
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # to create the release
+
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355   # GitHub's hard limit is 6 hours
+    steps:
+      - name: Make sure the encryption key is set
+        env:
+          WRAITH_ISO_KEY: ${{ secrets.WRAITH_ISO_KEY }}
+        run: |
+          if [ -z "$WRAITH_ISO_KEY" ]; then
+            echo "::error::Add the secret WRAITH_ISO_KEY (Settings > Secrets and variables > Actions) first. Nothing was built or published."
+            exit 1
+          fi
+          if [ ${#WRAITH_ISO_KEY} -lt 16 ]; then
+            echo "::error::WRAITH_ISO_KEY must be at least 16 characters."
+            exit 1
+          fi
+
+      - name: Free disk space (the build needs ~70 GB)
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 6144
+          swap-size-mb: 4096
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
+          build-mount-path: /build
+
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - name: Build ISO in a Kali container
+        run: |
+          df -h /build
+          sudo mkdir -p /build/cache /build/work /build/out
+          # Disk is tight on GitHub's machines: once the ISO stage starts, the
+          # downloaded-package cache is no longer needed here, so free it.
+          ( until ls /build/work/.build/binary_* >/dev/null 2>&1; do sleep 60; done
+            sudo rm -rf /build/cache/packages.* && echo "[wraith] freed the package cache"
+          ) &
+          docker run --rm --privileged \
+            -e WRAITH_COMMIT="$GITHUB_SHA" \
+            -e CACHE=/build/cache -e WORK=/build/work -e OUT=/build/out \
+            -v "$GITHUB_WORKSPACE/src:/src:ro" \
+            -v /build:/build \
+            kalilinux/kali-rolling bash /src/build.sh
+          sudo chown -R "$(id -u):$(id -g)" /build/out
+          ls -lh /build/out
+          df -h /build
+
+      - name: Encrypt (AES-256) and split into parts under 2 GB
+        env:
+          WRAITH_ISO_KEY: ${{ secrets.WRAITH_ISO_KEY }}
+        run: |
+          cd /build/out
+          ISO=$(ls -1 wraith-*.iso | head -n1)
+          NAME="${ISO%.iso}"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+          # The passphrase is read from a pipe, never written to disk or the log.
+          printf '%s' "$WRAITH_ISO_KEY" | gpg --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 \
+              --s2k-count 65011712 --compress-algo none -o - "$ISO" \
+            | split -b 1900M -d -a 2 - "$NAME.iso.gpg.part"
+          rm -f "$ISO" "$ISO.sha256"
+          sha256sum "$NAME".iso.gpg.part* > "$NAME.parts.sha256"
+          ls -lh
+
+      - name: Publish the encrypted parts as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /build/out
+          TAG="build-$(date -u +%Y%m%d-%H%M)"
+          cat > notes.md <<EOF
+          Encrypted Wraith OS ISO (AES-256). Unusable without the passphrase.
+
+          To use it, download every \`.part\` file and the \`.parts.sha256\` file into one folder, then in Ubuntu/WSL or Linux:
+
+          \`\`\`bash
+          sha256sum -c $NAME.parts.sha256
+          cat $NAME.iso.gpg.part* | gpg -d -o $NAME.iso
+          \`\`\`
+
+          gpg asks for the passphrase. Then write \`$NAME.iso\` to a 32 GB+ USB stick.
+          EOF
+          sed -i 's/^          //' notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Wraith OS $TAG (encrypted)" \
+            --notes-file notes.md "$NAME".iso.gpg.part* "$NAME.parts.sha256"
