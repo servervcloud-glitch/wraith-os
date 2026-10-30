@@ -10,7 +10,7 @@ set -euo pipefail
 SRC=${SRC:-/src}
 CACHE=${CACHE:-/cache}
 OUT=${OUT:-/out}
-WORK=/work
+WORK=${WORK:-/work}
 
 log() { printf '\n\033[1;35m[wraith]\033[0m %s\n' "$*"; }
 

@@ -28,7 +28,17 @@ jobs:
 
       - name: Build ISO in a Kali container
         run: |
-          mkdir -p "$HOME/wraith-cache" "$HOME/wraith-builds" "$HOME/wraith-work"
+          # Cache and work tree must be on ONE mount: live-build hard-links
+          # cached packages into the build, which fails across mounts.
+          if [ -d "$HOME/wraith-cache" ] && [ ! -e "$HOME/wraith/cache" ]; then
+            mkdir -p "$HOME/wraith" && mv "$HOME/wraith-cache" "$HOME/wraith/cache"
+          fi
+          # Old separate work folder from an earlier version (root-owned files,
+          # so remove it from inside a container)
+          if [ -d "$HOME/wraith-work" ]; then
+            docker run --rm -v "$HOME:/h" kalilinux/kali-rolling rm -rf /h/wraith-work || true
+          fi
+          mkdir -p "$HOME/wraith/cache" "$HOME/wraith/work" "$HOME/wraith-builds"
 
           # If a build is still running (GitHub lost contact but the PC kept
           # going), follow that one instead of starting another.
@@ -47,8 +57,8 @@ jobs:
             docker run -d --name wraith-build --privileged \
               -e WRAITH_COMMIT="$GITHUB_SHA" \
               -v "$GITHUB_WORKSPACE:/src:ro" \
-              -v "$HOME/wraith-cache:/cache" \
-              -v "$HOME/wraith-work:/work" \
+              -e CACHE=/wraith/cache -e WORK=/wraith/work \
+              -v "$HOME/wraith:/wraith" \
               -v "$HOME/wraith-builds:/out" \
               kalilinux/kali-rolling bash /src/build.sh >/dev/null
           fi
