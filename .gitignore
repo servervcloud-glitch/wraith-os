@@ -11,3 +11,7 @@ config/common
 config/source
 __pycache__/
 /out/
+keys/*private*
+keys/*secret*
+*.unlock*
+*unlock-key*

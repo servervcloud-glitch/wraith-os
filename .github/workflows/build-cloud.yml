@@ -1,11 +1,11 @@
 name: Build Wraith OS (cloud, encrypted)
 
 # Builds the ISO on GitHub's own machines (free and unlimited for public
-# repos), so the home PC isn't needed. The finished ISO is encrypted with
-# AES-256 using the WRAITH_ISO_KEY secret BEFORE it is uploaded, then split
-# into parts under 2 GB and attached to a GitHub Release. Without the
-# passphrase the download is unusable. If the secret is missing, the build
-# refuses to start, so an unencrypted ISO can never be published.
+# repos), so the home PC isn't needed. The finished ISO is encrypted BEFORE it
+# is uploaded, to the public key in keys/wraith-iso-public.asc (safe to be
+# public: it can only lock). Only the owner's unlock file (never in the repo)
+# can open it - no passphrase to mistype. Then it's split into parts under
+# 2 GB and attached to a GitHub Release.
 on:
   workflow_dispatch:
 
@@ -21,19 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 355   # GitHub's hard limit is 6 hours
     steps:
-      - name: Make sure the encryption key is set
-        env:
-          WRAITH_ISO_KEY: ${{ secrets.WRAITH_ISO_KEY }}
-        run: |
-          if [ -z "$WRAITH_ISO_KEY" ]; then
-            echo "::error::Add the secret WRAITH_ISO_KEY (Settings > Secrets and variables > Actions) first. Nothing was built or published."
-            exit 1
-          fi
-          if [ ${#WRAITH_ISO_KEY} -lt 16 ]; then
-            echo "::error::WRAITH_ISO_KEY must be at least 16 characters."
-            exit 1
-          fi
-
       - name: Free disk space (the build needs ~70 GB)
         uses: easimon/maximize-build-space@v10
         with:
@@ -85,19 +72,22 @@ jobs:
           ls -lh /build/out
           df -h /build
 
-      - name: Encrypt (AES-256) and split into parts under 2 GB
-        env:
-          WRAITH_ISO_KEY: ${{ secrets.WRAITH_ISO_KEY }}
+      - name: Encrypt (to the owner's key) and split into parts under 2 GB
         run: |
+          KEY="$GITHUB_WORKSPACE/src/keys/wraith-iso-public.asc"
+          if [ ! -s "$KEY" ]; then
+            echo "::error::keys/wraith-iso-public.asc is missing - refusing to publish an unencrypted ISO."
+            exit 1
+          fi
+          export GNUPGHOME=$(mktemp -d)
+          gpg --batch --import "$KEY"
+          FPR=$(gpg --batch --with-colons --list-keys | awk -F: '/^fpr/{print $10; exit}')
           cd /build/out
           ISO=$(ls -1 wraith-*.iso | head -n1)
           NAME="${ISO%.iso}"
           echo "NAME=$NAME" >> "$GITHUB_ENV"
-          # The passphrase is read from a pipe, never written to disk or the log.
-          printf '%s' "$WRAITH_ISO_KEY" | gpg --batch --yes --pinentry-mode loopback \
-              --passphrase-fd 0 --symmetric --cipher-algo AES256 --s2k-digest-algo SHA512 \
-              --s2k-count 65011712 --compress-algo none -o - "$ISO" \
-            | split -b 1900M -d -a 2 - "$NAME.iso.gpg.part"
+          gpg --batch --yes --trust-model always --recipient "$FPR" --compress-algo none \
+              --encrypt -o - "$ISO" | split -b 1900M -d -a 2 - "$NAME.iso.gpg.part"
           rm -f "$ISO" "$ISO.sha256"
           sha256sum "$NAME".iso.gpg.part* > "$NAME.parts.sha256"
           ls -lh
@@ -109,16 +99,17 @@ jobs:
           cd /build/out
           TAG="build-$(date -u +%Y%m%d-%H%M)"
           cat > notes.md <<EOF
-          Encrypted Wraith OS ISO (AES-256). Unusable without the passphrase.
+          Encrypted Wraith OS ISO. Unusable without the owner's unlock key file.
 
           To use it, download every \`.part\` file and the \`.parts.sha256\` file into one folder, then in Ubuntu/WSL or Linux:
 
           \`\`\`bash
           sha256sum -c $NAME.parts.sha256
-          cat $NAME.iso.gpg.part* | gpg -d -o $NAME.iso
+          gpg --import wraith-iso-unlock-key.asc
+          gpg -d -o $NAME.iso <(cat $NAME.iso.gpg.part*)
           \`\`\`
 
-          gpg asks for the passphrase. Then write \`$NAME.iso\` to a 32 GB+ USB stick.
+          Then use \`$NAME.iso\` in a VM or write it to a 32 GB+ USB stick.
           EOF
           sed -i 's/^          //' notes.md
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Wraith OS $TAG (encrypted)" \
