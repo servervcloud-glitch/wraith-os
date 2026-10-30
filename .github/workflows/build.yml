@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 1440
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history, to compare with an unfinished build
 
       - name: Check disk space
         run: |
@@ -54,8 +56,17 @@ jobs:
             done
             # Detached + named: the build keeps going even if this job is cut off,
             # and the work tree on the PC lets a new run resume after a restart.
+            # Resume an unfinished build if the OS itself hasn't changed since
+            # it started (changes to this workflow or docs don't matter).
+            BUILD_ID="$GITHUB_SHA"
+            prev=$(cat "$HOME/wraith/work/.wraith-commit" 2>/dev/null || true)
+            if [ -n "$prev" ] && git cat-file -e "$prev^{commit}" 2>/dev/null \
+               && git diff --quiet "$prev" "$GITHUB_SHA" -- auto config branding build.sh; then
+              BUILD_ID="$prev"
+              echo "The OS hasn't changed since the unfinished build ($prev) - resuming it"
+            fi
             docker run -d --name wraith-build --privileged \
-              -e WRAITH_COMMIT="$GITHUB_SHA" \
+              -e WRAITH_COMMIT="$BUILD_ID" \
               -v "$GITHUB_WORKSPACE:/src:ro" \
               -e CACHE=/wraith/cache -e WORK=/wraith/work \
               -v "$HOME/wraith:/wraith" \
