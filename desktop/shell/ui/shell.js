@@ -140,7 +140,10 @@ function icon(app, size) {
     el.style.setProperty("--img", `url("${app.icon}")`);
     const img = new Image(); img.src = app.icon; img.alt = ""; img.draggable = false;
     img.onerror = () => { el.classList.remove("logo"); el.innerHTML = `<span class="ms fill">${app.glyph}</span>`; };
-    el.append(img, Object.assign(document.createElement("i"), { className: "gloss" }));
+    // thickness: darker copies of the icon stacked behind it, deeper in 3D space
+    const depth = document.createElement("span"); depth.className = "depth";
+    for (let k = 1; k <= 5; k++) { const d = new Image(); d.src = app.icon; d.alt = ""; d.draggable = false; d.style.setProperty("--k", k); depth.append(d); }
+    el.append(depth, img, Object.assign(document.createElement("i"), { className: "gloss" }));
   } else el.innerHTML = `<span class="ms fill">${app.glyph}</span>`;
   return el;
 }

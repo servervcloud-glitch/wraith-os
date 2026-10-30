@@ -4,10 +4,10 @@ const PK = [["nmap", "7.95+dfsg-1", "7.95+dfsg-2"], ["metasploit-framework", "6.
   ["linux-image-amd64", "7.1.5-1kali1", "7.2.1-1kali1"], ["sqlmap", "1.9.8-1", "1.9.10-1"], ["wireshark", "4.4.9-1", "4.4.10-1"], ["hashcat", "7.1.2-1", "7.1.3-1"],
   ["tor", "0.4.9.3-1", "0.4.9.4-1"], ["torbrowser-launcher", "0.3.7-3", "0.3.8-1"], ["apparmor", "4.1.2-1", "4.1.3-1"], ["nftables", "1.1.5-1", "1.1.6-1"]];
 const privGroup = (n) => (/^(tor|torbrowser-launcher|apparmor|nftables)$/.test(n) ? "Tor & privacy" : "Kali tools & system");
-let wifiOn = true, connected = "Home-5G";
+let wifiOn = true, connected = "Home-5G", authed = false;
 const look = { dark: true, source: "#6a5ff0" };
 export default {
-  auth: ({ check }) => ({ ok: !check }),
+  auth: ({ check }) => { if (check) return { ok: authed }; authed = true; return { ok: true }; },
   async checkUpdates(_, emit) {
     for (let p = 0; p <= 100; p += 5) { await sleep(70); emit("job", { kind: "refresh", pct: p, text: `Checking: kali-rolling ${p < 60 ? "InRelease" : "Packages"}` }); }
     emit("updates", { ok: true, live: true, download: "412 MB", restart: true, packages: PK.map(([name, from, to]) => ({ name, from, to, group: privGroup(name) })) });
@@ -17,8 +17,10 @@ export default {
     emit("job", { kind: "upgrade", done: true, ok: true, errors: [] });
   },
   wifi: () => ({ available: true, enabled: wifiOn, networks: !wifiOn ? [] : [
-    { ssid: connected, signal: 92, secure: true, connected: true, saved: true }, { ssid: "Cafe Lumière", signal: 71, secure: false },
-    { ssid: "TELUS-4821", signal: 58, secure: true }, { ssid: "Bell_3F9A", signal: 33, secure: true }, { ssid: "DIRECT-HP-Printer", signal: 22, secure: true }] }),
+    { ssid: "Home-5G", signal: 92, secure: true, saved: true }, { ssid: "Cafe Lumière", signal: 71, secure: false },
+    { ssid: "TELUS-4821", signal: 58, secure: true }, { ssid: "Bell_3F9A", signal: 33, secure: true }, { ssid: "DIRECT-HP-Printer", signal: 22, secure: true }]
+    .map((n) => ({ ...n, connected: n.ssid === connected, saved: n.saved || n.ssid === connected }))
+    .sort((a, b) => b.connected - a.connected) }),
   wifiRadio: ({ on }) => { wifiOn = on; return { ok: true }; },
   async wifiConnect({ ssid }) { await sleep(900); connected = ssid; return { ok: true }; },
   wifiForget: () => ({ ok: true }),
