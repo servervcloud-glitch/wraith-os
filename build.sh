@@ -30,7 +30,7 @@ export DEBIAN_FRONTEND=noninteractive
 retry apt-get update -qq
 retry apt-get install -y -qq live-build debootstrap kali-archive-keyring \
     xorriso squashfs-tools mtools dosfstools grub-pc-bin grub-efi-amd64-bin \
-    grub-common python3 python3-pil python3-fonttools fontconfig >/dev/null
+    grub-common python3 python3-pil python3-numpy python3-fonttools fontconfig >/dev/null
 
 # /work lives on the PC (not inside the container), so if the PC restarts or
 # the connection drops, the next run picks up where this one stopped -
