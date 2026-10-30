@@ -116,3 +116,22 @@ button { border: 0; background: none; cursor: default; }
 @keyframes snackIn { from { opacity: 0; transform: translate(-50%, 20px); } }
 
 .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- 3D app icon (same finish as the desktop: the original icon with
+   thickness, bevel, light and shadow) ---- */
+.i3d { --s: 56px; position: relative; display: inline-block; width: var(--s); height: var(--s); flex: none; transform-style: preserve-3d;
+  transform: perspective(calc(var(--s) * 4)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .5s var(--spring); }
+.i3d img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.i3d > img { transform: translateZ(calc(var(--s) * .02)); }
+.i3d .depth { position: absolute; inset: 0; transform-style: preserve-3d; }
+.i3d .depth img { transform: translate3d(0, calc(var(--s) * var(--k) * .016), calc(var(--s) * var(--k) * -.03)); filter: brightness(calc(.58 - var(--k) * .06)) saturate(1.2); }
+.i3d .depth img:last-child { filter: brightness(.18) drop-shadow(0 calc(var(--s) * .10) calc(var(--s) * .10) rgba(0,0,0,.45)); }
+.i3d .gloss, .i3d .gloss::before, .i3d .gloss::after { position: absolute; inset: 0; pointer-events: none; }
+.i3d .gloss { transform: translateZ(calc(var(--s) * .021)); -webkit-mask: var(--img) center / contain no-repeat;
+  background: radial-gradient(110% 60% at 28% 0%, rgba(255,255,255,.7), rgba(255,255,255,.16) 42%, transparent 60%), linear-gradient(180deg, transparent 48%, rgba(0,0,0,.34) 100%);
+  mix-blend-mode: soft-light; }
+.i3d .gloss::before, .i3d .gloss::after { content: ""; mix-blend-mode: normal; }
+.i3d .gloss::before { background: rgba(255,255,255,.75); -webkit-mask: var(--img) center / contain no-repeat, var(--img) 50% calc(50% + var(--s) * .025) / contain no-repeat; -webkit-mask-composite: source-out; }
+.i3d .gloss::after { background: rgba(0,0,0,.45); -webkit-mask: var(--img) center / contain no-repeat, var(--img) 50% calc(50% - var(--s) * .025) / contain no-repeat; -webkit-mask-composite: source-out; }
+.i3d.glyph { display: grid; place-items: center; border-radius: 30%; background: var(--secondary-container); color: var(--on-secondary-container); }
+.i3d.glyph .ms { font-size: calc(var(--s) * .5); }

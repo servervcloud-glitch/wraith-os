@@ -1,7 +1,22 @@
 """Shared helpers for Wraith app backends: admin (sudo) access and package jobs."""
 import json
+import os
 import subprocess
 import threading
+
+# Shown by the desktop's Dynamic Island while a job runs (the shell watches this file)
+ACTIVITY = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "wraith-activity.json")
+TITLES = {"upgrade": "Updating Wraith", "refresh": "Checking for updates", "install": "Installing", "remove": "Removing"}
+
+
+def write_activity(data):
+    try:
+        tmp = ACTIVITY + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(data, fh)
+        os.replace(tmp, ACTIVITY)
+    except OSError:
+        pass
 
 
 def run(cmd, timeout=10, **kw):
@@ -60,8 +75,8 @@ class PkgJob:
     """One wraith-pkg run in the background, reporting progress events:
     emit("job", {"kind", "pct", "text", "done", "ok", "errors", "data"})."""
 
-    def __init__(self, admin, emit):
-        self.admin, self.emit = admin, emit
+    def __init__(self, admin, emit, activity="settings"):
+        self.admin, self.emit, self.app = admin, emit, activity
         self.busy = None
 
     def start(self, kind, *args):
@@ -86,6 +101,9 @@ class PkgJob:
     def _run(self, kind, args):
         errors, data, rc = [], None, 1
         state = {"pct": 0}
+        what = TITLES.get(kind, kind) + (" " + ", ".join(args[:2]) + ("…" if len(args) > 2 else "") if args else "")
+        short = ", ".join(args[:1]) if args else ("Update" if kind == "upgrade" else kind)
+        island = {"id": "job", "app": self.app, "title": what, "short": short, "kind": kind}
 
         def line(text):
             nonlocal data
@@ -93,6 +111,7 @@ class PkgJob:
                 _, pct, msg = (text.split(" ", 2) + [""])[:3]
                 state["pct"] = float(pct)
                 self.emit("job", {"kind": kind, "pct": state["pct"], "text": msg})
+                write_activity({**island, "progress": state["pct"] / 100, "sub": msg})
             elif text.startswith("J "):
                 data = json.loads(text[2:])
             elif text.startswith("E "):
@@ -102,3 +121,6 @@ class PkgJob:
         finally:
             self.busy = None
             self.emit("job", {"kind": kind, "done": True, "ok": rc == 0, "errors": errors[-5:], "data": data, "pct": 100})
+            done = {"upgrade": "Updates installed", "install": f"{short} installed", "remove": f"{short} removed"}.get(kind, "Done")
+            write_activity({**island, "done": True, "ok": rc == 0,
+                            "title": done if rc == 0 else "Something went wrong", "sub": "" if rc == 0 else (errors[-1] if errors else "")})

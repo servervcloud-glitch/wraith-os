@@ -545,6 +545,12 @@ const island = (() => {
     get box() { return [innerWidth / 2 - target.w / 2 - 8, 0, target.w + 16, target.h + 14]; },
   };
 })();
+// Installs / updates running in Wraith apps (Settings, App Manager)
+function activity(a) {
+  const open = () => call("openApp", { app: a.app, page: a.kind === "upgrade" || a.kind === "refresh" ? "update" : null });
+  if (a.done) island.end("job", { icon: a.ok ? "check_circle" : "error", title: a.title, sub: a.sub || (a.ok ? "All done" : ""), accent: a.ok ? "#9be6b4" : "#ffb4ab" });
+  else island.set("job", { icon: a.kind === "remove" ? "delete" : "download", title: a.title, short: a.short, sub: a.sub, progress: a.progress ?? 0, onclick: open });
+}
 function osd(kind, value) {
   const icons = { volume: value == 0 ? "volume_off" : value < 40 ? "volume_down" : "volume_up", brightness: "light_mode" };
   island.alert({ icon: icons[kind], title: kind === "volume" ? "Volume" : "Brightness", progress: value / 100, wide: 320 }, 1400);
@@ -627,7 +633,7 @@ async function start() {
   });
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
   island.render();
-  window.shell = { island, osd, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  window.shell = { island, osd, activity, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
   requestAnimationFrame(syncInput);
 }
 start();

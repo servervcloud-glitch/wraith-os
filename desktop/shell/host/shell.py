@@ -68,6 +68,7 @@ HIDE = {"footclient", "foot-server", "org.codeberg.dnkl.footclient", "org.codebe
         "org.freedesktop.Xwayland", "root-terminal", "display-im7.q16", "python3.14", "texdoctk"}
 KALI_MENU = "/etc/xdg/menus/applications-merged/kali-applications.menu"
 LIVE_STATUS = "/run/wraith/desktop-status.json"   # written by wraith-status-watch (root)
+ACTIVITY = os.path.join(GLib.get_user_runtime_dir(), "wraith-activity.json")   # written by Wraith apps' jobs
 
 
 def run(cmd, timeout=8):
@@ -377,6 +378,13 @@ class Backend:
             run(["playerctl", act])
         return {"ok": True}
 
+    def openApp(self, a):
+        app = a.get("app")
+        if app in ("settings", "apps", "terminal"):
+            extra = ["page=update"] if app == "settings" and a.get("page") == "update" else []
+            subprocess.Popen(["wraith-app", app, *extra], start_new_session=True)
+        return {"ok": True}
+
     def power(self, a):
         act = a.get("action")
         cmd = {"lock": ["hyprlock"], "logout": ["hyprctl", "dispatch", "exit"],
@@ -390,7 +398,7 @@ class Backend:
         return {"ok": True}
 
     CALLS = {"status": status, "toggle": toggle, "set": set, "theme": theme, "apps": apps_,
-             "launch": launch, "power": power, "media": media, "inputRegion": inputRegion}
+             "launch": launch, "power": power, "media": media, "openApp": openApp, "inputRegion": inputRegion}
 
     def call(self, name, args):
         fn = self.CALLS.get(name)
@@ -577,6 +585,9 @@ class Host:
         # refresh the shell as soon as Tor / USB guard report something
         self._live_mon = Gio.File.new_for_path(LIVE_STATUS).monitor_file(Gio.FileMonitorFlags.NONE, None)
         self._live_mon.connect("changed", lambda *a: self._js(self.ui_view, "window.shell && shell.refreshStatus()"))
+        # installs / updates from Wraith apps -> Dynamic Island
+        self._act_mon = Gio.File.new_for_path(ACTIVITY).monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self._act_mon.connect("changed", self._on_activity)
 
     # ---- page <-> host -------------------------------------------------------
     def _on_message(self, _ucm, value, view):
@@ -615,6 +626,16 @@ class Host:
         if keyboard:
             self.ui_view.grab_focus()
         return False
+
+    def _on_activity(self, _mon, _f, _o, event):
+        if event not in (Gio.FileMonitorEvent.CHANGES_DONE_HINT, Gio.FileMonitorEvent.CREATED, Gio.FileMonitorEvent.CHANGED):
+            return
+        try:
+            with open(ACTIVITY) as fh:
+                data = json.load(fh)
+        except (OSError, ValueError):
+            return
+        self._js(self.ui_view, f"window.shell && shell.activity({json.dumps(data)})")
 
     # ---- Now Playing (any MPRIS player: browsers, VLC, Spotify...) ----------
     def _start_media(self):

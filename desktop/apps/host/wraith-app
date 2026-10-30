@@ -108,6 +108,11 @@ class AppWindow:
         uri = GLib.Uri.parse(req.get_uri(), GLib.UriFlags.NONE)
         host, path = uri.get_host(), urllib.parse.unquote(uri.get_path() or "/").lstrip("/")
         base = ROOT if host == "app" else None
+        if host == "icon":                              # app icons from the icon themes
+            fp = os.path.realpath("/" + path)
+            if fp.startswith(("/usr/share/icons/", "/usr/share/pixmaps/")) and fp.endswith((".svg", ".png")) and os.path.isfile(fp):
+                req.finish(Gio.File.new_for_path(fp).read(None), os.path.getsize(fp), "image/svg+xml" if fp.endswith(".svg") else "image/png")
+                return
         if base and path.startswith("vendor/"):      # shared fonts / colour library from the shell
             base, path = VENDOR, path[len("vendor/"):]
         fp = os.path.realpath(os.path.join(base, path)) if base else ""
