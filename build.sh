@@ -32,18 +32,32 @@ retry apt-get install -y -qq live-build debootstrap kali-archive-keyring \
     xorriso squashfs-tools mtools dosfstools grub-pc-bin grub-efi-amd64-bin \
     grub-common python3 python3-pil python3-fonttools fontconfig >/dev/null
 
-log "Preparing work tree"
-rm -rf "$WORK"
+# /work lives on the PC (not inside the container), so if the PC restarts or
+# the connection drops, the next run picks up where this one stopped -
+# as long as the code hasn't changed (same commit).
+COMMIT=${WRAITH_COMMIT:-unknown}
 mkdir -p "$WORK" "$CACHE" "$OUT"
-cp -a "$SRC"/auto "$SRC"/config "$WORK"/
-ln -s "$CACHE" "$WORK/cache"
+if [ -f "$WORK/.wraith-commit" ] && [ "$(cat "$WORK/.wraith-commit")" = "$COMMIT" ] && [ -d "$WORK/.build" ]; then
+    RESUME=1
+    log "Resuming the unfinished build of $COMMIT"
+else
+    RESUME=0
+    log "Preparing a fresh work tree"
+    # Unmount anything a crashed run left mounted, then start clean
+    grep -o " $WORK/chroot[^ ]*" /proc/mounts | sort -r | xargs -r -n1 umount -lf 2>/dev/null || true
+    find "$WORK" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+    cp -a "$SRC"/auto "$SRC"/config "$WORK"/
+    ln -s "$CACHE" "$WORK/cache"
+    echo "$COMMIT" > "$WORK/.wraith-commit"
+fi
 cd "$WORK"
 
+# Low-RAM friendly compression (needed on fresh and resumed runs alike)
+export MKSQUASHFS_OPTIONS="-mem 1024M -processors $(nproc) -b 1M"
+
+if [ "$RESUME" = 0 ]; then
 log "Rendering boot menu and boot animation assets"
 python3 "$SRC"/branding/render.py --out "$WORK"
-
-# The server has 4 GB RAM: cap squashfs memory and threads, swap covers spikes.
-export MKSQUASHFS_OPTIONS="-mem 1024M -processors $(nproc) -b 1M"
 
 # Skip any package that this Kali snapshot doesn't have, instead of failing
 # the whole build (Kali drops and renames packages over time).
@@ -77,6 +91,15 @@ lb config
 # Same retries inside the image being built
 mkdir -p config/apt
 printf 'Acquire::Retries "10";\nAcquire::http::Timeout "60";\n' > config/apt/80-wraith-retries.conf
+fi
+
+# A run cut off mid-install can leave packages half set up: finish them.
+if [ "$RESUME" = 1 ] && [ -d chroot/var/lib/dpkg ]; then
+    log "Finishing packages left half-installed by the interrupted run"
+    mount --bind /proc chroot/proc 2>/dev/null || true
+    chroot chroot env DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
+    umount -lf chroot/proc 2>/dev/null || true
+fi
 
 log "Building (this takes hours the first time; later builds reuse the cache)"
 # If a download drops mid-build, run lb build again: finished stages are
@@ -104,3 +127,8 @@ NAME="wraith-${STAMP}-amd64.iso"
 mv "$ISO" "$OUT/$NAME"
 ( cd "$OUT" && sha256sum "$NAME" > "$NAME.sha256" )
 log "Done: $OUT/$NAME ($(du -h "$OUT/$NAME" | cut -f1))"
+
+# Free the ~40 GB work tree; the package cache stays for faster next builds.
+log "Cleaning up the work tree"
+lb clean --chroot --binary 2>/dev/null || true
+find "$WORK" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true

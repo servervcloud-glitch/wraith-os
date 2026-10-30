@@ -28,18 +28,36 @@ jobs:
 
       - name: Build ISO in a Kali container
         run: |
-          mkdir -p "$HOME/wraith-cache" "$HOME/wraith-builds"
-          # Retry the image download if the connection drops
-          for i in 1 2 3 4 5 6; do
-            docker pull kalilinux/kali-rolling && break
-            [ $i -eq 6 ] && exit 1
-            echo "Download interrupted, retrying ($i/6) in 20 s..."; sleep 20
-          done
-          docker run --rm --privileged \
-            -v "$GITHUB_WORKSPACE:/src:ro" \
-            -v "$HOME/wraith-cache:/cache" \
-            -v "$HOME/wraith-builds:/out" \
-            kalilinux/kali-rolling bash /src/build.sh
+          mkdir -p "$HOME/wraith-cache" "$HOME/wraith-builds" "$HOME/wraith-work"
+
+          # If a build is still running (GitHub lost contact but the PC kept
+          # going), follow that one instead of starting another.
+          if [ "$(docker inspect -f '{{.State.Running}}' wraith-build 2>/dev/null)" = "true" ]; then
+            echo "A build is already running on this PC - following it"
+          else
+            docker rm -f wraith-build >/dev/null 2>&1 || true
+            # Retry the image download if the connection drops
+            for i in 1 2 3 4 5 6; do
+              docker pull kalilinux/kali-rolling && break
+              [ $i -eq 6 ] && exit 1
+              echo "Download interrupted, retrying ($i/6) in 20 s..."; sleep 20
+            done
+            # Detached + named: the build keeps going even if this job is cut off,
+            # and the work tree on the PC lets a new run resume after a restart.
+            docker run -d --name wraith-build --privileged \
+              -e WRAITH_COMMIT="$GITHUB_SHA" \
+              -v "$GITHUB_WORKSPACE:/src:ro" \
+              -v "$HOME/wraith-cache:/cache" \
+              -v "$HOME/wraith-work:/work" \
+              -v "$HOME/wraith-builds:/out" \
+              kalilinux/kali-rolling bash /src/build.sh >/dev/null
+          fi
+
+          docker logs -f wraith-build &
+          code=$(docker wait wraith-build)
+          sleep 2
+          docker rm wraith-build >/dev/null 2>&1 || true
+          exit "$code"
 
       - name: Keep only the newest ISO (saves ~13 GB per old build)
         run: |
