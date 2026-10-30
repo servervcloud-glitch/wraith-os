@@ -50,6 +50,22 @@ jobs:
         with:
           path: src
 
+      - name: Move Docker storage to the big build disk
+        run: |
+          # The space was freed into /build (100 GB), but Docker keeps its
+          # images on the small system disk by default - move it.
+          sudo systemctl stop docker docker.socket
+          sudo mkdir -p /build/docker
+          if [ -s /etc/docker/daemon.json ]; then
+            sudo jq '. + {"data-root": "/build/docker"}' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new >/dev/null
+          else
+            echo '{"data-root": "/build/docker"}' | sudo tee /etc/docker/daemon.json.new >/dev/null
+          fi
+          sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          sudo systemctl start docker
+          docker info --format 'Docker storage: {{.DockerRootDir}}'
+          df -h / /build
+
       - name: Build ISO in a Kali container
         run: |
           df -h /build
