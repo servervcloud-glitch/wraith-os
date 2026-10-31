@@ -141,25 +141,12 @@ export function windowFrame(title) {
   return { frame, content };
 }
 
-/** The app's own icon with the 3D finish (or a neutral glyph when it has none). */
-export function icon3d(url, size = 56, glyph = "apps") {
-  const el = h("span.i3d", { style: { "--s": size + "px" } });
+/** The app's own icon, flat (or a neutral glyph when it has none). */
+export function appIcon(url, size = 56, glyph = "apps") {
+  const el = h("span.app-icon", { style: { "--s": size + "px" } });
   if (!url) { el.classList.add("glyph"); el.append(icon(glyph, true)); return el; }
-  el.style.setProperty("--img", `url("${url}")`);
-  const depth = h("span.depth");
-  for (let k = 1; k <= 5; k++) { const d = h("img", { src: url, alt: "", draggable: "false" }); d.style.setProperty("--k", k); depth.append(d); }
   const img = h("img", { src: url, alt: "", draggable: "false" });
-  img.onerror = () => { el.replaceWith(icon3d(null, size, glyph)); };
-  el.append(depth, img, h("i.gloss"));
+  img.onerror = () => { el.replaceWith(appIcon(null, size, glyph)); };
+  el.append(img);
   return el;
 }
-// icons lean towards the pointer
-let tiltEl = null;
-addEventListener("pointermove", (e) => {
-  const el = e.target.closest?.(".i3d:not(.glyph)");
-  if (el !== tiltEl) { tiltEl?.style.removeProperty("--rx"); tiltEl?.style.removeProperty("--ry"); tiltEl = el; }
-  if (!el) return;
-  const r = el.getBoundingClientRect();
-  el.style.setProperty("--ry", (((e.clientX - r.left) / r.width - 0.5) * 18).toFixed(1) + "deg");
-  el.style.setProperty("--rx", ((0.5 - (e.clientY - r.top) / r.height) * 18).toFixed(1) + "deg");
-}, { passive: true });

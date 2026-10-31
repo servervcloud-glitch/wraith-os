@@ -133,17 +133,11 @@ function icon(app, size) {
   el.className = "icon"; if (size) el.style.setProperty("--s", size + "px");
   el.style.setProperty("--c1", app.c[0]); el.style.setProperty("--c2", app.c[1]);
   if (app.icon) {
-    // The app's own icon exactly as it ships - no tile or plate behind it -
-    // with a 3D finish: gloss and shading clipped to the icon's own shape,
-    // a layered shadow, and a slight tilt towards the cursor.
+    // The app's own icon exactly as it ships: flat, no tile or plate behind it.
     el.classList.add("logo");
-    el.style.setProperty("--img", `url("${app.icon}")`);
     const img = new Image(); img.src = app.icon; img.alt = ""; img.draggable = false;
     img.onerror = () => { el.classList.remove("logo"); el.innerHTML = `<span class="ms fill">${app.glyph}</span>`; };
-    // thickness: darker copies of the icon stacked behind it, deeper in 3D space
-    const depth = document.createElement("span"); depth.className = "depth";
-    for (let k = 1; k <= 5; k++) { const d = new Image(); d.src = app.icon; d.alt = ""; d.draggable = false; d.style.setProperty("--k", k); depth.append(d); }
-    el.append(depth, img, Object.assign(document.createElement("i"), { className: "gloss" }));
+    el.append(img);
   } else el.innerHTML = `<span class="ms fill">${app.glyph}</span>`;
   return el;
 }
@@ -225,17 +219,6 @@ function staggerIn(el, i) {
       () => { el.style.transition = ""; el.style.transform = ""; });
   }, Math.min(i, 24) * 14);
 }
-
-// 3D tilt: the icon under the pointer leans towards it a little
-addEventListener("pointermove", (e) => {
-  const el = e.target.closest?.(".icon.logo");
-  if (el !== tiltEl) { tiltEl?.style.removeProperty("--rx"); tiltEl?.style.removeProperty("--ry"); tiltEl = el; }
-  if (!el) return;
-  const r = el.getBoundingClientRect();
-  el.style.setProperty("--ry", (((e.clientX - r.left) / r.width - 0.5) * 18).toFixed(1) + "deg");
-  el.style.setProperty("--rx", ((0.5 - (e.clientY - r.top) / r.height) * 18).toFixed(1) + "deg");
-}, { passive: true });
-let tiltEl = null;
 
 /* ------------------------------------------------------------------ panels */
 const overlay = $("#overlay"), drawer = $("#drawer"), qs = $("#qs");

@@ -1,5 +1,5 @@
 // Wraith App Manager - Kali's toolbox: browse, search, install, remove, open.
-import { call, on, initTheme, h, icon, icon3d, dialog, askAdmin, snack, windowFrame, IN_OS, useMock } from "../common/app.js";
+import { call, on, initTheme, h, icon, appIcon, dialog, askAdmin, snack, windowFrame, IN_OS, useMock } from "../common/app.js";
 
 if (!IN_OS) useMock((await import("./mock.js")).default);
 await initTheme();
@@ -35,7 +35,7 @@ function button(t) {
 
 function card(t, i) {
   return h("div.acard", { style: { animationDelay: Math.min(i, 30) * 18 + "ms" }, onclick: () => details(t) },
-    icon3d(t.icon, 56, t.terminal ? "terminal" : "apps"),
+    appIcon(t.icon, 56, t.terminal ? "terminal" : "apps"),
     h("div.meta", h("b", t.name), h("span", t.comment || t.pkg)),
     h("div.act", button(t)));
 }
@@ -89,7 +89,7 @@ async function details(t) {
     t.installed && t.desktop ? h("button.btn", { onclick: () => { close(); call("launch", { desktop: t.desktop }); } }, icon("open_in_new"), "Open")
       : !t.installed ? h("button.btn", { onclick: () => { close(); install(t); } }, icon("download"), "Install") : null);
   const dlg = h("div.dialog.wide",
-    h("div.detail", icon3d(t.icon, 96, t.terminal ? "terminal" : "apps"), h("div", h("b", t.name), h("div.muted", info.summary || t.comment))),
+    h("div.detail", appIcon(t.icon, 96, t.terminal ? "terminal" : "apps"), h("div", h("b", t.name), h("div.muted", info.summary || t.comment))),
     h("div.facts", info.version && h("span", "Version " + info.version), info["installed-size"] && h("span", Math.round(info["installed-size"] / 1024) + " MB"),
       t.cats?.length && h("span", t.cats.join(" · ")), h("span", "Package: " + t.pkg)),
     info.description && h("div.desc", info.description), acts);
