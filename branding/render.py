@@ -571,8 +571,21 @@ def grub_theme(W, H, out, make_fonts=True):
     if make_fonts:
         build_grub_fonts(out, sizes)
 
-    menu_top = 0.40
+    # Everything is placed relative to the vertical centre of the screen, so the
+    # wordmark, menu, timer and hint stay together and centred whatever mode
+    # the firmware actually gives (16:10, 4:3, 1366x768 ... not only 1080p).
     menu_h = 3 * (item_h + item_sp)
+    hint_h = round(sizes["hint"] * 1.4)
+    gap_wm, gap_bar, gap_hint = round(64 * u), round(34 * u), round(52 * u)
+    block = wm.height + gap_wm + menu_h + gap_hint + hint_h
+    y0 = -block // 2                      # top of the block, relative to 50%
+    y_menu = y0 + wm.height + gap_wm
+    y_bar = y_menu + menu_h + gap_bar
+    y_hint = y_menu + menu_h + gap_hint
+
+    def at(v):
+        return f"50%{'+' if v >= 0 else '-'}{abs(v)}"
+
     theme = f"""# Wraith OS boot menu - generated for {W}x{H} by branding/render.py
 title-text: ""
 desktop-color: "#{'%02x%02x%02x' % pal['bg']}"
@@ -585,13 +598,13 @@ terminal-border: "0"
 
 + image {{
     left = 50%-{wm.width // 2}
-    top = 18%
+    top = {at(y0)}
     file = "wordmark.png"
 }}
 
 + boot_menu {{
     left = 50%-{menu_w // 2}
-    top = {round(menu_top * 100)}%
+    top = {at(y_menu)}
     width = {menu_w}
     height = {menu_h}
     item_font = "WraithMedium Regular {sizes['item']}"
@@ -610,7 +623,7 @@ terminal-border: "0"
 + progress_bar {{
     id = "__timeout__"
     left = 50%-{round(120 * u)}
-    top = {round(menu_top * H + menu_h + 34 * u)}
+    top = {at(y_bar)}
     width = {round(240 * u)}
     height = {bar_h}
     show_text = false
@@ -622,7 +635,8 @@ terminal-border: "0"
     id = "__timeout__"
     left = 0
     width = 100%
-    top = {round(menu_top * H + menu_h + 52 * u)}
+    top = {at(y_hint)}
+    height = {hint_h}
     align = "center"
     font = "WraithRegular Regular {sizes['hint']}"
     color = "#8f899c"
@@ -637,7 +651,7 @@ terminal-border: "0"
 """
     with open(f"{out}/theme.txt", "w") as fh:
         fh.write(theme)
-    return dict(item_h=item_h, item_sp=item_sp, menu_w=menu_w, icon=icon, menu_top=menu_top,
+    return dict(item_h=item_h, item_sp=item_sp, menu_w=menu_w, icon=icon, y_menu=y_menu, block=block,
                 sizes=sizes, wm=wm.size, bar_h=bar_h)
 
 
