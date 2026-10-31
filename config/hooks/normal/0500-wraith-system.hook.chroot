@@ -32,6 +32,15 @@ systemctl enable tor.service
 systemctl enable NetworkManager.service
 systemctl disable nftables.service 2>/dev/null || true
 
+# The desktop is Hyprland, started by the tty1 autologin. kali-linux-everything
+# pulls in GDM (and other display managers), which grab the screen first and
+# land in GNOME - mask them all and boot to the console target instead.
+rm -f /etc/systemd/system/display-manager.service
+for dm in gdm gdm3 lightdm sddm lxdm xdm slim nodm display-manager; do
+    systemctl mask "$dm.service" 2>/dev/null || true
+done
+systemctl set-default multi-user.target
+
 # No root login; SSH off unless you turn it on
 passwd -l root
 systemctl disable ssh.service 2>/dev/null || true
