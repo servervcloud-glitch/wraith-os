@@ -8,6 +8,11 @@ name: Build Wraith OS (cloud)
 on:
   workflow_dispatch:
     inputs:
+      edition:
+        description: "full = every Kali tool; plain = Wraith alone, add tools later"
+        type: choice
+        options: [full, plain]
+        default: full
       attempt:
         description: "Try number (a machine with too little disk re-queues the build)"
         default: "1"
@@ -49,7 +54,7 @@ jobs:
           echo "[wraith] /build has ${FREE} GB free (try $ATTEMPT)"
           if [ "$FREE" -lt 70 ]; then
             if [ "$ATTEMPT" -lt 5 ]; then
-              gh workflow run build-cloud.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f attempt=$((ATTEMPT + 1))
+              gh workflow run build-cloud.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f edition="${{ inputs.edition || 'full' }}" -f attempt=$((ATTEMPT + 1))
               echo "::error::Only ${FREE} GB of disk on this machine - the build was queued again on another one"
             else
               echo "::error::Only ${FREE} GB of disk on this machine, after $ATTEMPT tries - run the build again later"
@@ -87,7 +92,7 @@ jobs:
             sudo rm -rf /build/cache/packages.* && echo "[wraith] freed the package cache"
           ) &
           docker run --rm --privileged \
-            -e WRAITH_COMMIT="$GITHUB_SHA" \
+            -e WRAITH_COMMIT="$GITHUB_SHA" -e WRAITH_EDITION="${{ inputs.edition || 'full' }}" \
             -e CACHE=/build/cache -e WORK=/build/work -e OUT=/build/out \
             -v "$GITHUB_WORKSPACE/src:/src:ro" \
             -v /build:/build \

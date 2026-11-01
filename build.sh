@@ -36,6 +36,11 @@ retry apt-get install -y -qq live-build debootstrap kali-archive-keyring \
 # the connection drops, the next run picks up where this one stopped -
 # as long as the code hasn't changed (same commit).
 COMMIT=${WRAITH_COMMIT:-unknown}
+# Edition: "full" has every Kali tool; "plain" is Wraith alone (tools can be
+# added later from the App Manager) - a much smaller ISO that builds faster.
+EDITION=${WRAITH_EDITION:-full}
+case "$EDITION" in full|plain) ;; *) log "Unknown edition '$EDITION' (use full or plain)"; exit 1 ;; esac
+COMMIT="$COMMIT-$EDITION"
 mkdir -p "$WORK" "$CACHE" "$OUT"
 if [ -f "$WORK/.wraith-commit" ] && [ "$(cat "$WORK/.wraith-commit")" = "$COMMIT" ] && [ -d "$WORK/.build" ]; then
     RESUME=1
@@ -47,6 +52,7 @@ else
     grep -o " $WORK/chroot[^ ]*" /proc/mounts | sort -r | xargs -r -n1 umount -lf 2>/dev/null || true
     find "$WORK" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
     cp -a "$SRC"/auto "$SRC"/config "$WORK"/
+    [ "$EDITION" = plain ] && rm -f "$WORK"/config/package-lists/30-kali-tools.list.chroot
     ln -s "$CACHE" "$WORK/cache"
     echo "$COMMIT" > "$WORK/.wraith-commit"
 fi
@@ -140,6 +146,7 @@ ISO=$(ls -1 "$WORK"/*.iso 2>/dev/null | head -n1)
 [ -n "$ISO" ] || { log "No ISO was produced - look for the first error (E:) above"; exit 1; }
 STAMP=$(date -u +%Y%m%d-%H%M)
 NAME="wraith-${STAMP}-amd64.iso"
+[ "$EDITION" = plain ] && NAME="wraith-plain-${STAMP}-amd64.iso"
 mv "$ISO" "$OUT/$NAME"
 ( cd "$OUT" && sha256sum "$NAME" > "$NAME.sha256" )
 log "Done: $OUT/$NAME ($(du -h "$OUT/$NAME" | cut -f1))"
