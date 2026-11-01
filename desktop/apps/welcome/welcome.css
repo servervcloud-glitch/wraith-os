@@ -1,13 +1,13 @@
 body { background: var(--surface); }
 .wz { position: relative; height: 100%; overflow: hidden; }
 .wz .top { position: absolute; top: 10px; right: 10px; z-index: 5; }
-.step { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 40px 80px 96px;
-  transition: transform .6s var(--emph), opacity .45s var(--emph); }
+.step { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; justify-content: safe center;
+  padding: 40px 80px 96px; overflow-y: auto; transition: transform .6s var(--emph), opacity .45s var(--emph); }
 .step.out-left { transform: translateX(-60px); opacity: 0; pointer-events: none; }
 .step.out-right { transform: translateX(60px); opacity: 0; pointer-events: none; }
 .step h2 { font-size: 34px; font-weight: 650; margin: 0 0 10px; letter-spacing: -.5px; }
 .step p.lead { font-size: 15.5px; color: var(--on-surface-variant); margin: 0 0 24px; max-width: 560px; }
-.foot { position: absolute; left: 0; right: 0; bottom: 0; height: 88px; display: flex; align-items: center; gap: 12px; padding: 0 40px; z-index: 4; }
+.foot { position: absolute; left: 0; right: 0; bottom: 0; height: 88px; display: flex; align-items: center; gap: 12px; padding: 0 40px; z-index: 4; background: var(--surface); }
 .dots { display: flex; gap: 8px; flex: 1; }
 .dots i { width: 8px; height: 8px; border-radius: 4px; background: var(--outline-variant); transition: width .45s var(--spring), background .3s; }
 .dots i.on { width: 26px; background: var(--primary); }
@@ -38,3 +38,12 @@ body { background: var(--surface); }
 kbd { font: 600 12.5px Figtree; padding: 5px 10px; border-radius: 8px; background: var(--surface-container-highest); border-bottom: 2px solid var(--outline-variant); white-space: nowrap; }
 .torline { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; max-width: 560px; }
 .torline .wave { flex: 1; }
+/* Short windows (small screens): tighten so each step fits without scrolling */
+@media (max-height: 720px) {
+  .step { padding: 28px 56px 96px; }
+  .step h2 { font-size: 28px; margin-bottom: 6px; }
+  .step p.lead { margin-bottom: 16px; }
+  .feats { gap: 10px; }
+  .feat { padding: 12px 14px; border-radius: 18px; }
+  .wordmark { font-size: 56px; }
+}
