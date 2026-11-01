@@ -40,5 +40,6 @@ cp -a "$TMP/grub" /boot/grub/themes/wraith
 sed -i "s/^GRUB_GFXMODE=.*/GRUB_GFXMODE=${W}x${H},auto/" /etc/default/grub.d/wraith.cfg
 update-grub
 update-initramfs -u
+mkdir -p "$(dirname "$STAMP")"
 echo "${W}x${H}" > "$STAMP"
 echo "wraith-display-fit: done, pixel-exact from the next boot"
