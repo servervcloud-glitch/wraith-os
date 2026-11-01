@@ -523,14 +523,19 @@ def grub_icon(kind, d, colour, bgc):
     return shape(d, d, draw)
 
 
-def nine_slice(out, prefix, w, h, colour):
-    """Pill split into GRUB's 9 pieces; corners are exact quarter circles."""
+def nine_slice(out, prefix, w, h, colour, edge=None):
+    """Pill split into GRUB's 9 pieces; corners are exact quarter circles.
+
+    GRUB adds the top/bottom pieces' height as padding around a selected menu
+    item, so for the menu highlight pass edge=1: the top and bottom rows are
+    1 px and the round ends live in the side pieces (drawn at full height)."""
     r = h // 2
+    t = r if edge is None else edge
     full = pill(max(w, 2 * r + 2), h, colour)
     W, H = full.size
-    boxes = {"nw": (0, 0, r, r), "n": (r, 0, r + 1, r), "ne": (W - r, 0, W, r),
-             "w": (0, r, r, H - r), "c": (r, r, r + 1, H - r), "e": (W - r, r, W, H - r),
-             "sw": (0, H - r, r, H), "s": (r, H - r, r + 1, H), "se": (W - r, H - r, W, H)}
+    boxes = {"nw": (0, 0, r, t), "n": (r, 0, r + 1, t), "ne": (W - r, 0, W, t),
+             "w": (0, t, r, H - t), "c": (r, t, r + 1, H - t), "e": (W - r, t, W, H - t),
+             "sw": (0, H - t, r, H), "s": (r, H - t, r + 1, H), "se": (W - r, H - t, W, H)}
     for k, b in boxes.items():
         piece = full.crop(b)
         if piece.width == 0 or piece.height == 0:
@@ -562,10 +567,7 @@ def grub_theme(W, H, out, make_fonts=True):
     for kind, cls in (("ghost", "ghost"), ("install", "install"), ("sliders", "advanced")):
         grub_icon(kind, icon, (230, 225, 240), (44, 41, 56)).save(f"{out}/icons/{cls}.png")
     shutil.copy(f"{out}/icons/advanced.png", f"{out}/icons/settings.png")
-    nine_slice(out, "select", menu_w, item_h, (63, 56, 145))
-    bar_h = max(4, round(6 * u))
-    nine_slice(out, "bar", round(240 * u), bar_h, pal["track"])
-    nine_slice(out, "hl", round(240 * u), bar_h, pal["wave"])
+    nine_slice(out, "select", menu_w, item_h + 2, (63, 56, 145), edge=1)
 
     sizes = {"item": round(25 * u), "hint": round(17 * u)}
     if make_fonts:
@@ -574,13 +576,13 @@ def grub_theme(W, H, out, make_fonts=True):
     # Everything is placed relative to the vertical centre of the screen, so the
     # wordmark, menu, timer and hint stay together and centred whatever mode
     # the firmware actually gives (16:10, 4:3, 1366x768 ... not only 1080p).
+    # No progress bar: GRUB draws it far taller than asked, over the hint.
     menu_h = 3 * (item_h + item_sp)
     hint_h = round(sizes["hint"] * 1.4)
-    gap_wm, gap_bar, gap_hint = round(64 * u), round(34 * u), round(52 * u)
+    gap_wm, gap_hint = round(64 * u), round(40 * u)
     block = wm.height + gap_wm + menu_h + gap_hint + hint_h
     y0 = -block // 2                      # top of the block, relative to 50%
     y_menu = y0 + wm.height + gap_wm
-    y_bar = y_menu + menu_h + gap_bar
     y_hint = y_menu + menu_h + gap_hint
 
     def at(v):
@@ -620,17 +622,6 @@ terminal-border: "0"
     scrollbar = false
 }}
 
-+ progress_bar {{
-    id = "__timeout__"
-    left = 50%-{round(120 * u)}
-    top = {at(y_bar)}
-    width = {round(240 * u)}
-    height = {bar_h}
-    show_text = false
-    bar_style = "bar_*.png"
-    highlight_style = "hl_*.png"
-}}
-
 + label {{
     id = "__timeout__"
     left = 0
@@ -652,7 +643,7 @@ terminal-border: "0"
     with open(f"{out}/theme.txt", "w") as fh:
         fh.write(theme)
     return dict(item_h=item_h, item_sp=item_sp, menu_w=menu_w, icon=icon, y_menu=y_menu, block=block,
-                sizes=sizes, wm=wm.size, bar_h=bar_h)
+                sizes=sizes, wm=wm.size)
 
 
 def build_grub_fonts(out, sizes):
