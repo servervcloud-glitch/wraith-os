@@ -37,3 +37,7 @@ shim-signed
 plymouth
 plymouth-label
 initramfs-tools
+
+# Everyday command-line tools (the plain edition has no Kali tools to pull them in)
+curl
+wget
