@@ -368,8 +368,19 @@ function buildSliders() {
 
 /* ------------------------------------------------------------------ app launch */
 // A tile grows out of the tapped icon into the window, like Pixel's app open.
+// The "Wisp tail" loading cursor while an app starts, until its window appears.
+let busyTimer = 0;
+function busy(on) {
+  document.documentElement.classList.toggle("busy", on);
+  call("busy", { on });
+  clearTimeout(busyTimer);
+  if (on) busyTimer = setTimeout(() => busy(false), 12000);
+}
+function launched() { if (document.documentElement.classList.contains("busy")) busy(false); }
+
 function launch(app, fromEl) {
   call("launch", { id: app.id });
+  busy(true);
   const r = fromEl.getBoundingClientRect();
   const W = innerWidth, H = innerHeight;
   const win = { w: Math.min(980, W * 0.68), h: Math.min(620, H * 0.66) };
@@ -669,7 +680,7 @@ async function start() {
   });
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
   island.render();
-  window.shell = { island, osd, activity, download, minimized, activeWindow, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  window.shell = { island, osd, activity, download, minimized, activeWindow, launched, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
   requestAnimationFrame(syncInput);
 }
 start();

@@ -23,6 +23,7 @@ body {
   transition: background .5s var(--emph), color .5s var(--emph);
 }
 button { font: inherit; color: inherit; border: 0; background: none; cursor: default; }
+html.busy, html.busy * { cursor: progress !important; }
 .ms {
   font-family: "Material Symbols Rounded";
   font-weight: 400; font-style: normal; font-size: 20px; line-height: 1;

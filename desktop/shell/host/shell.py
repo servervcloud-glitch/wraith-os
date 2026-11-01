@@ -461,12 +461,17 @@ class Backend:
         ok, _ = run(cmd)
         return {"ok": ok}
 
+    def busy(self, a):
+        """The "Wisp tail" loading cursor over the empty desktop while an app starts."""
+        GLib.idle_add(self.host.set_busy, bool(a.get("on")))
+        return {"ok": True}
+
     def inputRegion(self, a):
         GLib.idle_add(self.host.set_input, a.get("rects") or [], bool(a.get("keyboard")))
         return {"ok": True}
 
     CALLS = {"status": status, "toggle": toggle, "set": set, "theme": theme, "apps": apps_,
-             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "restore": restore, "winctl": winctl, "inputRegion": inputRegion}
+             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "restore": restore, "winctl": winctl, "busy": busy, "inputRegion": inputRegion}
 
     def call(self, name, args):
         fn = self.CALLS.get(name)
@@ -691,6 +696,11 @@ class Host:
     def relay_theme(self, colours):
         for w in self.wallpapers:
             w.get_child().set_colours(colours)
+        return False
+
+    def set_busy(self, on):
+        for w in self.wallpapers:
+            w.set_cursor_from_name("progress" if on else None)
         return False
 
     def set_input(self, rects, keyboard):
@@ -944,6 +954,8 @@ class Host:
                                 subprocess.Popen(["wraith-minimize", "0x" + arg.split(",")[0]], start_new_session=True)
                             if ev in ("openwindow", "closewindow", "movewindow", "movewindowv2"):
                                 changed = True
+                            if ev == "openwindow":      # the app that was starting has its window
+                                GLib.idle_add(lambda: (self._js(self.ui_view, "window.shell && shell.launched()"), False)[1])
                             if ev in ("activewindowv2", "openwindow", "closewindow", "windowtitlev2", "movewindowv2"):
                                 focus = True
                         if changed:
