@@ -556,7 +556,12 @@ async function refreshStatus() {
   const st = (await call("status")) ?? {};
   state.live = st.live ?? true;
   if (st.tor !== undefined) state.tor = st.tor;
-  if (st.dark !== undefined && st.dark !== state.dark) { state.dark = st.dark; applyTheme(); }
+  const src = st.source || state.source;
+  if ((st.dark !== undefined && st.dark !== state.dark) || src !== state.source) {
+    if (st.dark !== undefined) state.dark = st.dark;
+    state.source = src;
+    applyTheme();
+  }
   for (const k of ["wifi", "bluetooth", "usbguard", "mac", "airplane"]) if (st[k] !== undefined) tileState[k] = st[k];
   tileState.tor = state.tor; tileState.dark = state.dark;
   $("#qs-mode").textContent = state.live ? "Wraith Live" : "Wraith";

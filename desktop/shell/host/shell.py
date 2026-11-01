@@ -254,6 +254,7 @@ class Backend:
 
     # ---- status -------------------------------------------------------------
     def status(self, _):
+        self.conf.update(load_conf())       # Settings and Welcome write it too
         st = {"live": "boot=live" in open("/proc/cmdline").read().split(),
               "dark": self.conf.get("dark", True), "source": self.conf.get("source")}
         try:
@@ -352,6 +353,7 @@ class Backend:
 
     def theme(self, a):
         dark = bool(a.get("dark", True))
+        self.conf.update(load_conf())       # keep what other apps saved
         self.conf["dark"] = dark
         if a.get("source"):
             self.conf["source"] = a["source"]
@@ -612,6 +614,9 @@ class Host:
         # refresh the shell as soon as Tor / USB guard report something
         self._live_mon = Gio.File.new_for_path(LIVE_STATUS).monitor_file(Gio.FileMonitorFlags.NONE, None)
         self._live_mon.connect("changed", lambda *a: self._js(self.ui_view, "window.shell && shell.refreshStatus()"))
+        # theme picked in Settings / Welcome -> the desktop follows at once
+        self._conf_mon = Gio.File.new_for_path(CONF_FILE).monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self._conf_mon.connect("changed", lambda *a: self._js(self.ui_view, "window.shell && shell.refreshStatus()"))
         # installs / updates from Wraith apps -> Dynamic Island
         self._act_mon = Gio.File.new_for_path(ACTIVITY).monitor_file(Gio.FileMonitorFlags.NONE, None)
         self._act_mon.connect("changed", self._on_activity)
