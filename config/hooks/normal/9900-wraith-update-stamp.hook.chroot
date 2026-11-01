@@ -1,0 +1,7 @@
+#!/bin/bash
+# Mark /etc and /var as up to date with /usr. Without these stamps systemd
+# thinks the OS was just updated and runs ldconfig (1.5 min with every Kali
+# library), hwdb and catalog rebuilds on every boot of Wraith Live.
+set -euo pipefail
+/usr/lib/systemd/systemd-update-done
+cat /etc/.updated

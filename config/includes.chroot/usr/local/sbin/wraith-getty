@@ -1,0 +1,7 @@
+#!/bin/sh
+# getty for tty1. A static drop-in rather than a systemd generator: generators
+# can be cut short on a slow first boot, which left Wraith Live at a login prompt.
+if grep -qw 'boot=live' /proc/cmdline; then
+    exec /sbin/agetty --autologin wraith --noclear - "$TERM"
+fi
+exec /sbin/agetty -o '-- \u' --noreset --noclear - "$TERM"
