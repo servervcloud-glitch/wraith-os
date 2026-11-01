@@ -5,7 +5,7 @@ if (!IN_OS) useMock((await import("./mock.js")).default);
 await initTheme();
 const st = await call("state");
 
-const wz = h("div.wz", h("div.top", h("button.wbtn", { title: "Minimise", onclick: () => call("minimize") }, icon("remove"))));
+const wz = h("div.wz", h("div.top", h("button.wbtn.min", { title: "Minimise", onclick: () => call("minimize") }, icon("remove"))));
 document.body.append(wz);
 const steps = [];
 const dotsEl = h("div.dots");

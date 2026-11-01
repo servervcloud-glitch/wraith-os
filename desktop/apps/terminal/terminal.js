@@ -1,5 +1,5 @@
 // Wraith Terminal - tabs around xterm.js, themed from the desktop colours.
-import { call, on, initTheme, h, icon, IN_OS, useMock } from "../common/app.js";
+import { call, on, initTheme, h, icon, windowButtons, IN_OS, useMock } from "../common/app.js";
 
 if (!IN_OS) useMock((await import("./mock.js")).default);
 await initTheme();
@@ -22,11 +22,9 @@ function termTheme() {
 }
 
 const tabsEl = h("div.tabs"), panes = h("div.panes");
-const frame = h("div.tframe",
-  h("header.tbar", tabsEl, h("button.add", { title: "New tab (Ctrl+Shift+T)", onclick: () => newTab() }, icon("add")),
-    h("button.wbtn", { title: "Minimise", onclick: () => call("minimize") }, icon("remove")),
-    h("button.wbtn.close", { title: "Close", onclick: () => call("close") }, icon("close"))),
-  panes);
+const tbar = h("header.tbar", tabsEl, h("button.add", { title: "New tab (Ctrl+Shift+T)", onclick: () => newTab() }, icon("add")));
+tbar.append(windowButtons(tbar));
+const frame = h("div.tframe", tbar, panes);
 document.body.append(frame);
 
 const tabs = new Map();   // backend id -> {term, fit, tab, pane, title}

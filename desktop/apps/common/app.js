@@ -135,14 +135,21 @@ export function wave() {
   return el;
 }
 
-/** Standard window frame with title and close button; returns {frame, content}. */
+/** Minimise, maximise and close buttons (double-clicking the bar maximises too). */
+export function windowButtons(bar) {
+  bar.addEventListener("dblclick", (e) => { if (!e.target.closest("button, input, .tab")) call("maximize"); });
+  return h("div.wbtns",
+    h("button.wbtn.min", { title: "Minimise", onclick: () => call("minimize") }, icon("remove")),
+    h("button.wbtn.max", { title: "Maximise", onclick: () => call("maximize") }, icon("open_in_full")),
+    h("button.wbtn.close", { title: "Close", onclick: () => call("close") }, icon("close")));
+}
+
+/** Standard window frame with title and window buttons; returns {frame, content}. */
 export function windowFrame(title) {
   const content = h("div.body");
-  const frame = h("div.frame",
-    h("header.titlebar", h("h1", title),
-      h("button.wbtn", { title: "Minimise", onclick: () => call("minimize") }, icon("remove")),
-      h("button.wbtn.close", { title: "Close", onclick: () => call("close") }, icon("close"))),
-    content);
+  const bar = h("header.titlebar", h("h1", title));
+  bar.append(windowButtons(bar));
+  const frame = h("div.frame", bar, content);
   document.body.append(frame);
   return { frame, content };
 }

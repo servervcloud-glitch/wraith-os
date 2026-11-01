@@ -151,6 +151,12 @@ class AppWindow:
                 # the focused window (this one - its button was just clicked)
                 subprocess.Popen(["wraith-minimize"], start_new_session=True)
                 result = True
+            elif name == "maximize":
+                # Hyprland's "maximise" (fullscreen mode 1): fills the screen
+                # but keeps the bar and dock; a second click puts it back
+                subprocess.Popen(["hyprctl", "dispatch", "fullscreen", "1"], start_new_session=True,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                result = True
             elif self.backend and not name.startswith("_") and callable(getattr(self.backend, name, None)):
                 try:
                     result = getattr(self.backend, name)(args)

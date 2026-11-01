@@ -22,10 +22,19 @@ html:not(.icons) .ms { color: transparent !important; }  /* until the icon font 
 .frame { display: grid; grid-template-rows: 52px 1fr; height: 100%; }
 .titlebar { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 20px; }
 .titlebar h1 { font-size: 16px; font-weight: 600; margin: 0; flex: 1; }
-.wbtn { width: 34px; height: 34px; border-radius: 17px; display: grid; place-items: center; color: var(--on-surface-variant);
-  transition: background .2s, border-radius .4s var(--spring); }
-.wbtn:hover { background: color-mix(in srgb, var(--on-surface) 8%, transparent); border-radius: 11px; }
-.wbtn.close:hover { background: var(--error-container); color: var(--on-error-container); }
+/* window buttons: amber minimise, green maximise, red close - round, each
+   glyph dark on its colour; they lift a little under the pointer */
+.wbtns { display: flex; align-items: center; gap: 8px; margin-left: 4px; }
+.wbtn { --c: var(--outline-variant); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--c); color: rgba(20, 16, 28, .72);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+  transition: transform .25s var(--spring), filter .15s; }
+.wbtn .ms { font-size: 17px; font-variation-settings: "wght" 600; }
+.wbtn:hover { transform: scale(1.12); filter: brightness(1.06) saturate(1.1); }
+.wbtn:active { transform: scale(.9); filter: brightness(.92); }
+.wbtn.min { --c: #ffc27a; }
+.wbtn.max { --c: #8ee6b5; }
+.wbtn.close { --c: #ff8f9a; }
 
 /* ---- navigation rail + content ---- */
 .body { display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
