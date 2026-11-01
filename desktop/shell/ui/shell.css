@@ -30,6 +30,8 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: def
   display: inline-block; white-space: nowrap; direction: ltr;
 }
 .ms.fill { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
+/* until the icon font has loaded, hide the ligature names ("volume_up") */
+html:not(.icons) .ms { color: transparent !important; }
 
 /* ---------------- wallpaper ---------------- */
 #wallpaper { position: fixed; inset: 0; overflow: hidden; transition: background .8s var(--emph);

@@ -7,7 +7,7 @@ ConditionKernelCommandLine=|wraith.mode=install
 [Service]
 Type=simple
 ExecStartPre=/usr/local/sbin/wraith-live-guard
-ExecStart=/run/wraith/bb sh /run/wraith/watch.sh
+ExecStart=/run/wraith-guard/busybox sh /run/wraith-guard/watch.sh
 Restart=on-failure
 OOMScoreAdjust=-1000
 

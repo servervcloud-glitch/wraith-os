@@ -57,12 +57,21 @@ def read_theme():
         return {"dark": True, "source": "#6a5ff0"}
 
 
+def fit_size(size):
+    """The default size, shrunk to fit small screens (the bar and dock stay visible)."""
+    try:
+        geo = Gdk.Display.get_default().get_monitors().get_item(0).get_geometry()
+        return min(size[0], max(geo.width - 48, 320)), min(size[1], max(geo.height - 40 - 92 - 24, 240))
+    except (AttributeError, TypeError):
+        return size
+
+
 class AppWindow:
     def __init__(self, gtk_app, name, page_args):
         self.name = name
         title, _, size = APPS[name]
         self.win = Gtk.ApplicationWindow(application=gtk_app, title=title)
-        self.win.set_default_size(*size)
+        self.win.set_default_size(*fit_size(size))
         self.win.set_decorated(False)          # the page draws its own header
         self.backend = self._load_backend()
         ctx = WebKit.WebContext.get_default()

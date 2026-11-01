@@ -14,6 +14,7 @@ button { border: 0; background: none; cursor: default; }
 .ms { font-family: "Material Symbols Rounded"; font-weight: 400; font-style: normal; font-size: 22px; line-height: 1;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; display: inline-block; white-space: nowrap; }
 .ms.fill { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
+html:not(.icons) .ms { color: transparent !important; }  /* until the icon font has loaded */
 ::selection { background: var(--primary-container); color: var(--on-primary-container); }
 ::-webkit-scrollbar { width: 10px; } ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 5px; border: 3px solid transparent; background-clip: padding-box; }
 

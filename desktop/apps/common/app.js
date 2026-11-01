@@ -2,6 +2,12 @@
 // dialogs, snackbar and the wavy progress bar.
 import { Hct, SchemeTonalSpot, MaterialDynamicColors as MDC, hexFromArgb, argbFromHex } from "../vendor/mcu.js";
 
+// The icon font is large and slow to load on software rendering: the CSS hides
+// the icon ligature names until it is ready
+const showIcons = () => document.documentElement.classList.add("icons");
+document.fonts.load('20px "Material Symbols Rounded"', "home").then(showIcons, showIcons);
+setTimeout(showIcons, 60000);
+
 export const IN_OS = !!window.wraith;
 const listeners = {};
 let mockBackend = null;

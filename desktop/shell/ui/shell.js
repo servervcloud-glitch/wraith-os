@@ -6,6 +6,12 @@ import {
   Hct, SchemeTonalSpot, MaterialDynamicColors as MDC, hexFromArgb, argbFromHex, sourceColorFromImage,
 } from "./vendor/mcu.js";
 
+// The icon font is large and slow to load on software rendering: the CSS hides
+// the icon ligature names until it is ready
+const showIcons = () => document.documentElement.classList.add("icons");
+document.fonts.load('20px "Material Symbols Rounded"', "home").then(showIcons, showIcons);
+setTimeout(showIcons, 60000);
+
 const $ = (s, el = document) => el.querySelector(s);
 const params = new URLSearchParams(location.search);
 
