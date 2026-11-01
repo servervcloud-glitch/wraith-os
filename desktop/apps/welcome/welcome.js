@@ -85,7 +85,7 @@ const netIdx = steps.length - 1;
 async function loadNets() {
   const w = await call("wifi", {});
   nets.replaceChildren();
-  if (!w?.available || !w.networks?.length) { nets.append(h("div.row", h("div.txt", h("span", w?.available ? "Looking for networks… (a cable works too)" : "No Wi-Fi here - plug in a network cable")))); return; }
+  if (!w?.available || !w.networks?.length) { nets.append(h("div.row", h("div.txt", h("span", w?.wired ? "Connected with a network cable" : w?.available ? "Looking for networks… (a cable works too)" : "No Wi-Fi here - plug in a network cable")))); return; }
   for (const n of w.networks.slice(0, 8))
     nets.append(h("div.row.click", { onclick: () => join(n) }, h("div.ic", icon(n.connected ? "wifi" : "wifi", n.connected)),
       h("div.txt", h("b", n.ssid), h("span", n.connected ? "Connected" : n.secure ? "Secured" : "Open")), n.secure ? icon("lock") : null));

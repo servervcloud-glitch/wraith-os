@@ -92,7 +92,9 @@ class Backend:
         known = [l.split(":")[0] for l in saved.splitlines() if l.endswith(":802-11-wireless")] if ok else []
         for n in nets:
             n["saved"] = n["ssid"] in known
-        return {"enabled": enabled, "networks": nets, "available": ok}
+        ok2, devs = run(["nmcli", "-t", "-f", "TYPE,STATE", "device"])
+        wired = ok2 and any(l.startswith("ethernet:connected") for l in devs.splitlines())
+        return {"enabled": enabled, "networks": nets, "available": ok, "wired": wired}
 
     def wifiConnect(self, a):
         ssid, pw = a.get("ssid", ""), a.get("password")

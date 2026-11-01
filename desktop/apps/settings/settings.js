@@ -103,6 +103,7 @@ const bars = (s) => s > 75 ? "network_wifi" : s > 50 ? "network_wifi_3_bar" : s 
 async function renderNetwork(page, rescan) {
   page.append(h("h2", "Wi-Fi"));
   const w = await call("wifi", { rescan });
+  if (w?.wired) page.append(h("div.note", icon("lan"), "Connected with a network cable."));
   if (!w?.available) { page.append(h("div.note", icon("wifi_off"), "No Wi-Fi hardware was found.")); return; }
   page.append(h("div.card", h("div.row", h("div.ic", icon("wifi")), h("div.txt", h("b", "Use Wi-Fi"), h("span", w.enabled ? "On" : "Off")),
     toggle(w.enabled, async (v) => { await call("wifiRadio", { on: v }); setTimeout(() => rerender("network"), 1200); }))));
