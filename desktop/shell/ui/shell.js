@@ -565,6 +565,7 @@ async function refreshStatus() {
   for (const k of ["wifi", "bluetooth", "usbguard", "mac", "airplane"]) if (st[k] !== undefined) tileState[k] = st[k];
   tileState.tor = state.tor; tileState.dark = state.dark;
   $("#qs-mode").textContent = state.live ? "Wraith Live" : "Wraith";
+  if (st.user) { $("#qs-user").textContent = st.user; $("#qs-avatar").textContent = st.user[0].toUpperCase(); }
   $("#wifi-icon").textContent = st.wifi === false ? "wifi_off" : st.wifiConnected === false ? "signal_wifi_statusbar_null" : "wifi";
   const batt = $(".batt");
   if (st.battery === null) batt.hidden = true;

@@ -25,6 +25,7 @@ import glob
 import json
 import mimetypes
 import os
+import pwd
 import re
 import shlex
 import shutil
@@ -257,6 +258,11 @@ class Backend:
         self.conf.update(load_conf())       # Settings and Welcome write it too
         st = {"live": "boot=live" in open("/proc/cmdline").read().split(),
               "dark": self.conf.get("dark", True), "source": self.conf.get("source")}
+        try:
+            pw = pwd.getpwuid(os.getuid())
+            st["user"] = pw.pw_gecos.split(",")[0] or pw.pw_name
+        except KeyError:
+            pass
         try:
             st["tor"] = open("/etc/wraith/tor-mode").read().strip() != "off"
         except OSError:
