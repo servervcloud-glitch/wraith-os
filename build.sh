@@ -64,6 +64,10 @@ export MKSQUASHFS_OPTIONS="-mem 1024M -processors $(nproc) -b 1M"
 if [ "$RESUME" = 0 ]; then
 log "Rendering boot menu and boot animation assets"
 python3 "$SRC"/branding/render.py --out "$WORK"
+# The installed system's boot menu theme (the ISO's own copy is made by a binary hook)
+mkdir -p "$WORK/config/includes.chroot/usr/share/wraith"
+rm -rf "$WORK/config/includes.chroot/usr/share/wraith/grub-theme"
+cp -a "$WORK/config/wraith-grub/themes/wraith" "$WORK/config/includes.chroot/usr/share/wraith/grub-theme"
 python3 "$SRC"/desktop/cursors/make_cursors.py "$WORK/config/includes.chroot/usr/share/icons"
 
 log "Adding the Wraith desktop shell"

@@ -106,6 +106,12 @@ DEBIAN_FRONTEND=noninteractive chroot "$CHROOT" dpkg -i "$D"/grub2-common_*.deb 
 if [ -f "$CHROOT/etc/default/grub" ] && ! grep -q '^GRUB_DISABLE_OS_PROBER=false' "$CHROOT/etc/default/grub"; then
     echo "GRUB_DISABLE_OS_PROBER=false" >> "$CHROOT/etc/default/grub"
 fi
+# The Wraith boot menu theme. Without it GRUB falls back to Kali's own theme.
+if [ -d /usr/share/wraith/grub-theme ]; then
+    mkdir -p "$CHROOT/boot/grub/themes"
+    rm -rf "$CHROOT/boot/grub/themes/wraith"
+    cp -a /usr/share/wraith/grub-theme "$CHROOT/boot/grub/themes/wraith"
+fi
 chroot "$CHROOT" /usr/sbin/update-grub
 EOF
     chmod 755 "$H"

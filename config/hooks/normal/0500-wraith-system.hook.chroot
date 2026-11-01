@@ -18,7 +18,7 @@ VERSION_ID="1.0"
 HOME_URL="https://github.com/servervcloud-glitch/wraith-os"
 EOF
 echo "Wraith OS - crafted by VIPIN" > /etc/issue.net
-printf 'Wraith OS \\n \\l\n\n' > /etc/issue
+printf 'Wraith OS \\n \\l\n\nLog in with the username and password you chose in the installer.\n\n' > /etc/issue
 
 # Firewall first, before any network comes up; Tor on by default
 mkdir -p /etc/wraith
