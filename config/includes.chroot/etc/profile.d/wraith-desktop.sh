@@ -10,9 +10,10 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ] && [ -z "${WRAITH_NO_D
     if [ "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" = VirtualBox ]; then
         # VirtualBox's display (VMSVGA) starts Hyprland but never shows a
         # window - a black screen with no way out - so don't start it there.
-        printf '\n  The Wraith desktop does not work in VirtualBox (its display adapter\n'
-        printf '  cannot show the desktop). Use QEMU / virt-manager with virtio-gpu and 3D,\n'
-        printf '  VMware, or a real computer. Try anyway: start-hyprland\n\n'
+        printf '\n  Wraith is working - this is VirtualBox, not a problem with Wraith.\n'
+        printf '  The desktop is installed, but VirtualBox'"'"'s display adapter cannot show it,\n'
+        printf '  so Wraith stays on this text console. To see the desktop, use a real\n'
+        printf '  computer (a USB stick), VMware, or QEMU / virt-manager with virtio-gpu and 3D.\n\n'
     else
         _wraith_start=$(date +%s)
         start-hyprland >"$HOME/.cache/wraith-desktop.log" 2>&1
