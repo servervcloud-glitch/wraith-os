@@ -224,6 +224,20 @@ class Apps:
         self.categories = (["Apps"] if "Apps" in used else []) + [c for c in order if c in used]
         return self
 
+    def for_window(self, cls):
+        """Name and icon of the app a window class belongs to (best guess)."""
+        cls = cls or ""
+        ids = [cls, cls.lower(), cls.split(".")[-1].lower()]
+        if cls.startswith("os.wraith."):
+            ids.insert(0, "wraith-" + cls[10:].lower())
+        for i in ids:
+            if i in self.apps:
+                return self.apps[i]["name"], self.apps[i]["icon"]
+        for a in self.apps.values():
+            if a["id"].lower().endswith("." + ids[1]):
+                return a["name"], a["icon"]
+        return None, next((u for u in map(self._icon_url, ids) if u), None)
+
     def payload(self, conf):
         dock = conf.get("dock") or [next((i for i in grp if i in self.apps), None) for grp in DEFAULT_DOCK]
         public = [{k: v for k, v in a.items() if k != "exec"}
@@ -424,12 +438,19 @@ class Backend:
             subprocess.Popen(cmd, start_new_session=True)
         return {"ok": bool(cmd)}
 
+    def restore(self, a):
+        addr = a.get("address") or ""
+        if not re.fullmatch(r"0x[0-9a-f]+", addr):
+            return {"ok": False}
+        ok, _ = run(["wraith-minimize", "restore", addr])
+        return {"ok": ok}
+
     def inputRegion(self, a):
         GLib.idle_add(self.host.set_input, a.get("rects") or [], bool(a.get("keyboard")))
         return {"ok": True}
 
     CALLS = {"status": status, "toggle": toggle, "set": set, "theme": theme, "apps": apps_,
-             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "inputRegion": inputRegion}
+             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "restore": restore, "inputRegion": inputRegion}
 
     def call(self, name, args):
         fn = self.CALLS.get(name)
@@ -620,6 +641,7 @@ class Host:
         self._start_media()
         self._start_privacy()
         self._start_downloads()
+        self._start_windows()
         # refresh the shell as soon as Tor / USB guard report something
         self._live_mon = Gio.File.new_for_path(LIVE_STATUS).monitor_file(Gio.FileMonitorFlags.NONE, None)
         self._live_mon.connect("changed", lambda *a: self._js(self.ui_view, "window.shell && shell.refreshStatus()"))
@@ -844,6 +866,60 @@ class Host:
     def _push_media(self, m):
         self._js(self.ui_view, f"window.shell && shell.media({json.dumps(m)})")
         return False
+
+    # ---- minimized windows (Hyprland has no minimize: see wraith-minimize) ----
+    def _start_windows(self):
+        sock = os.path.join(GLib.get_user_runtime_dir(), "hypr",
+                            os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", ""), ".socket2.sock")
+
+        def minimized():
+            ok, out = run(["hyprctl", "clients", "-j"], timeout=5)
+            try:
+                clients = json.loads(out) if ok else []
+            except ValueError:
+                return []
+            wins = []
+            for c in clients:
+                if c.get("workspace", {}).get("name") != "special:minimized":
+                    continue
+                name, icon = self.backend.apps.for_window(c.get("class"))
+                wins.append({"address": c["address"], "title": c.get("title") or name or c.get("class") or "Window",
+                             "name": name or c.get("class") or "", "icon": icon})
+            return wins
+
+        def push(wins):
+            GLib.idle_add(lambda: (self._js(self.ui_view, f"window.shell && shell.minimized({json.dumps(wins)})"), False)[1])
+
+        def loop():
+            last = None
+            while True:
+                try:
+                    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    s.connect(sock)
+                    buf = ""
+                    while True:
+                        data = s.recv(4096)
+                        if not data:
+                            break
+                        buf += data.decode(errors="ignore")
+                        *lines, buf = buf.split("\n")
+                        changed = False
+                        for line in lines:
+                            ev, _, arg = line.partition(">>")
+                            # apps that do send an xdg minimize request (some never do)
+                            if ev == "minimized" and arg.endswith(",1"):
+                                subprocess.Popen(["wraith-minimize", "0x" + arg.split(",")[0]], start_new_session=True)
+                            if ev in ("openwindow", "closewindow", "movewindow", "movewindowv2"):
+                                changed = True
+                        if changed:
+                            wins = minimized()
+                            if wins != last:
+                                last = wins
+                                push(wins)
+                except OSError:
+                    pass
+                time.sleep(2)   # Hyprland restarting, or not running
+        threading.Thread(target=loop, daemon=True).start()
 
     # ---- wraith-shell-ctl ----------------------------------------------------
     def _start_socket(self):

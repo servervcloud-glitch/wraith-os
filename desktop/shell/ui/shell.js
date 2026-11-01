@@ -163,6 +163,22 @@ function buildDock() {
   magnify();
 }
 
+// Minimized windows sit in the dock after the favourites; click one to bring it back.
+function minimized(wins) {
+  const box = $("#dock-min");
+  box.innerHTML = "";
+  for (const w of wins) {
+    const app = { name: w.name, icon: w.icon, glyph: "web_asset", c: G.b };
+    const b = document.createElement("button"); b.className = "app-btn min"; b.setAttribute("aria-label", w.title);
+    b.append(icon(app, 52)); b.insertAdjacentHTML("beforeend", `<span class="tip"></span>`);
+    b.querySelector(".tip").textContent = w.title;
+    b.onclick = () => call("restore", { address: w.address });
+    box.append(b);
+  }
+  box.hidden = $("#dock-min-sep").hidden = !wins.length;
+  requestAnimationFrame(syncInput);
+}
+
 // macOS-style magnification: the icon under the cursor grows the most and its
 // neighbours a little less, so the dock swells smoothly around the pointer.
 // The icons are re-drawn at the larger size (not scaled), so they stay sharp.
@@ -642,7 +658,7 @@ async function start() {
   });
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
   island.render();
-  window.shell = { island, osd, activity, download, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  window.shell = { island, osd, activity, download, minimized, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
   requestAnimationFrame(syncInput);
 }
 start();

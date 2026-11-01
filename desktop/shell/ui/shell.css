@@ -101,6 +101,12 @@ html:not(.icons) .ms { color: transparent !important; }
   opacity: 0; pointer-events: none; transition: opacity .15s, transform .3s var(--spring);
 }
 .app-btn:hover .tip { opacity: 1; transform: translate(-50%, 0); }
+/* a minimized window: dimmed, with a dot under it */
+.app-btn.min .icon { opacity: .7; }
+.app-btn.min::after {
+  content: ""; position: absolute; left: 50%; bottom: -5px; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: var(--on-surface); opacity: .6;
+}
 
 /* ---------------- Flat icons (a plain tile with a glyph when the app has no icon) ---------------- */
 .icon {

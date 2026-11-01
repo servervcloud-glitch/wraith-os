@@ -12,6 +12,7 @@ import importlib.util
 import json
 import mimetypes
 import os
+import subprocess
 import sys
 import threading
 import urllib.parse
@@ -146,7 +147,9 @@ class AppWindow:
                 GLib.idle_add(self.win.close)
                 result = True
             elif name == "minimize":
-                GLib.idle_add(self.win.minimize)
+                # Hyprland ignores xdg minimize requests: wraith-minimize hides
+                # the focused window (this one - its button was just clicked)
+                subprocess.Popen(["wraith-minimize"], start_new_session=True)
                 result = True
             elif self.backend and not name.startswith("_") and callable(getattr(self.backend, name, None)):
                 try:

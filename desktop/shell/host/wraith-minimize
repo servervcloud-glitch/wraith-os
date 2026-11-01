@@ -1,0 +1,12 @@
+#!/bin/bash
+# wraith-minimize [ADDRESS]        hide a window (the focused one by default)
+# wraith-minimize restore ADDRESS  bring it back to the current workspace
+# Hyprland has no minimize of its own: hidden windows wait on the special
+# workspace "minimized" (never shown), and the dock lists them.
+set -u
+if [ "${1:-}" = restore ]; then
+    [ -n "${2:-}" ] || { echo "usage: wraith-minimize restore ADDRESS" >&2; exit 64; }
+    ws=$(hyprctl activeworkspace -j | python3 -c 'import json, sys; print(json.load(sys.stdin)["id"])') || exit 1
+    exec hyprctl --batch "dispatch movetoworkspace $ws,address:$2 ; dispatch focuswindow address:$2" >/dev/null
+fi
+exec hyprctl dispatch movetoworkspacesilent "special:minimized${1:+,address:$1}" >/dev/null
