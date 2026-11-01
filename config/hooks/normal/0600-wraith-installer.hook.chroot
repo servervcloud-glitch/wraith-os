@@ -72,3 +72,42 @@ EOF
 sed -i 's/^branding:.*/branding: wraith/' /etc/calamares/settings.conf
 grep -q '^branding: wraith' /etc/calamares/settings.conf
 echo "wraith: installer branded"
+
+# Boot loader packages for the installed system, kept in the image. Debian's
+# calamares-bootloader-config runs "apt-get install grub-efi" (or grub-pc) in
+# the new system and expects the package on the install medium; Wraith's ISO
+# has no package pool, so a UEFI install failed with "Unable to locate package
+# grub-efi". Install them offline from these files instead.
+D=/usr/share/wraith/grub-debs
+mkdir -p "$D"
+(cd "$D" && apt-get download grub2-common grub-efi-amd64 grub-pc)
+ls "$D"/grub2-common_*.deb "$D"/grub-efi-amd64_*.deb "$D"/grub-pc_*.deb >/dev/null
+
+H=/usr/share/calamares/helpers/calamares-bootloader-config
+if [ -f "$H" ]; then
+    cat > "$H" <<'EOF'
+#!/bin/sh
+# Wraith: sets up GRUB in the new system from the packages kept in the image
+# (no download). Replaces calamares-settings-debian's version, which runs
+# apt-get against an install medium Wraith doesn't have.
+CHROOT=$(mount | grep proc | grep calamares | awk '{print $3}' | sed -e "s#/proc##g")
+D=/usr/share/wraith/grub-debs
+if [ -d /sys/firmware/efi/efivars ]; then
+    echo " * Installing grub-efi (uefi)..."
+    pkg=grub-efi-amd64
+else
+    echo " * Installing grub-pc (bios)..."
+    pkg=grub-pc
+fi
+# The installer's own "bootloader" step runs grub-install afterwards; keep the
+# package scripts from doing it now.
+echo "grub-pc grub-pc/install_devices_empty boolean true" | chroot "$CHROOT" debconf-set-selections
+DEBIAN_FRONTEND=noninteractive chroot "$CHROOT" dpkg -i "$D"/grub2-common_*.deb "$D"/${pkg}_*.deb || exit 1
+if [ -f "$CHROOT/etc/default/grub" ] && ! grep -q '^GRUB_DISABLE_OS_PROBER=false' "$CHROOT/etc/default/grub"; then
+    echo "GRUB_DISABLE_OS_PROBER=false" >> "$CHROOT/etc/default/grub"
+fi
+chroot "$CHROOT" /usr/sbin/update-grub
+EOF
+    chmod 755 "$H"
+    echo "wraith: offline boot loader setup for the installer"
+fi

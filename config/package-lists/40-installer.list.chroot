@@ -2,3 +2,5 @@
 calamares
 calamares-settings-debian
 rsync
+# lets the installer (a Qt app run as root) use Wraith's dark colours
+qt6ct
