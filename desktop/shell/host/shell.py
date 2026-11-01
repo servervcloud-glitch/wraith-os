@@ -407,7 +407,7 @@ class Backend:
         if act == "settings":
             subprocess.Popen(["wraith-app", "settings"], start_new_session=True)
             return {"ok": True}
-        cmd = {"lock": ["hyprlock"], "logout": ["hyprctl", "dispatch", "exit"],
+        cmd = {"lock": ["wraith-lock"], "logout": ["hyprctl", "dispatch", "exit"],
                "reboot": ["systemctl", "reboot"], "poweroff": ["systemctl", "poweroff"]}.get(act)
         if cmd:
             subprocess.Popen(cmd, start_new_session=True)

@@ -9,15 +9,28 @@ grep -qw 'wraith.mode=live\|wraith.mode=install' /proc/cmdline || exit 0
 
 swapoff -a || true
 
-SRC=$(findmnt -no SOURCE /run/live/medium 2>/dev/null || true)
-[ -n "$SRC" ] || { echo "wraith-live-guard: boot medium not found, watcher not started"; exit 0; }
-DISK=$(lsblk -no PKNAME "$SRC" 2>/dev/null | head -n1)
-[ -n "$DISK" ] || DISK=$(basename "$SRC")
-
 # Everything the watcher needs lives in RAM, because the USB it was loaded
 # from will be gone when it has to act.
 mkdir -p /run/wraith
 cp /bin/busybox /run/wraith/bb
+
+# Nothing to watch: keep the service running but idle (never power off).
+idle() {
+    echo "wraith-live-guard: $1, not watching the boot medium"
+    printf 'while :; do /run/wraith/bb sleep 3600; done\n' > /run/wraith/watch.sh
+    exit 0
+}
+
+# "Copy to RAM, then remove the USB": pulling it out is the whole point.
+grep -qw toram /proc/cmdline && idle "running from RAM"
+
+SRC=$(findmnt -no SOURCE /run/live/medium 2>/dev/null || true)
+[ -n "$SRC" ] || idle "boot medium not found"
+DISK=$(lsblk -no PKNAME "$SRC" 2>/dev/null | head -n1)
+[ -n "$DISK" ] || DISK=$(basename "$SRC")
+# Only ever watch a real block device - a missing one would power off at once.
+[ -e "/sys/block/$DISK" ] || idle "boot medium $SRC is not a disk"
+
 cat > /run/wraith/watch.sh <<EOF
 while [ -e /sys/block/$DISK ]; do /run/wraith/bb sleep 1; done
 echo e > /proc/sysrq-trigger

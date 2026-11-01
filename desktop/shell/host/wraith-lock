@@ -1,0 +1,9 @@
+#!/bin/sh
+# Locks the screen. In Wraith Live the account has no password of its own until
+# one is set in Welcome (sudo needs none until then), so locking would lock you
+# out of the session: say how to set one instead.
+if grep -qw 'boot=live' /proc/cmdline && sudo -n true 2>/dev/null; then
+    hyprctl notify 1 8000 "rgb(ffc27a)" "Set an admin password first (Welcome, or Settings > Account) - it is what unlocks the screen" >/dev/null 2>&1
+    exit 1
+fi
+exec hyprlock

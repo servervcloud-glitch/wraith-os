@@ -210,6 +210,10 @@ class Backend:
             if not self.admin.auth({"password": cur})["ok"]:
                 return {"ok": False, "error": "Current password is wrong"}
         ok, out = self.admin.run(["/usr/local/sbin/wraith-account", "setpass"], stdin=new + "\n")
+        if ok:
+            # as in Welcome: from now on admin actions ask for this password
+            self.admin.run(["/usr/local/sbin/wraith-account", "require-password"])
+            self.admin.password = new
         return {"ok": ok, "error": None if ok else (out.strip() or "Couldn't change it")}
 
     # ---- About ------------------------------------------------------------------------
