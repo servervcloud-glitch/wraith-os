@@ -14,6 +14,7 @@ event so the apps can show live progress:
   wraith-pkg install PKG [PKG...]    install packages
   wraith-pkg remove PKG [PKG...]     remove packages
 """
+import glob
 import json
 import os
 import re
@@ -117,7 +118,12 @@ def main():
         if rc == 0:
             subprocess.run(["apt-get", "-y", "-q", "autoremove"], env=ENV, capture_output=True)
     elif cmd == "install" and pkgs:
-        rc = apt_with_progress(["install", *pkgs], "Installing")
+        # The image ships without package lists: fetch them before the first install
+        rc = 0
+        if not glob.glob("/var/lib/apt/lists/*_Packages*"):
+            rc = apt_with_progress(["update"], "Checking")
+        if rc == 0:
+            rc = apt_with_progress(["install", *pkgs], "Installing")
     elif cmd == "remove" and pkgs:
         rc = apt_with_progress(["remove", *pkgs], "Removing")
     else:
