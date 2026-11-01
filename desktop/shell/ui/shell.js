@@ -185,6 +185,7 @@ function activeWindow(win) {
   capAddr = win?.address ?? null;
   const box = $("#wincap");
   box.hidden = !win;
+  $("#bar").classList.toggle("has-wincap", !!win);
   if (win) $("#wincap-title").textContent = win.title;
   requestAnimationFrame(syncInput);
 }
