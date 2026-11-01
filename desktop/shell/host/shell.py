@@ -261,6 +261,8 @@ class Backend:
         try:
             pw = pwd.getpwuid(os.getuid())
             st["user"] = pw.pw_gecos.split(",")[0] or pw.pw_name
+            if st["user"] == "Debian Live user":   # live-config's default name
+                st["user"] = "Wraith"
         except KeyError:
             pass
         try:
@@ -272,6 +274,7 @@ class Backend:
             st["wifi"] = out.strip() == "enabled"
             ok2, devs = run(["nmcli", "-t", "-f", "TYPE,STATE", "device"])
             st["wifiConnected"] = ok2 and "wifi:connected" in devs
+            st["wired"] = ok2 and "ethernet:connected" in devs
         rf = self._rfkill()
         st["bluetooth"] = None if "bluetooth" not in rf else not rf["bluetooth"]
         st["airplane"] = bool(rf) and all(rf.values())

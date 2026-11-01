@@ -273,13 +273,14 @@ function closeAll(instant) {
 /* ------------------------------------------------------------------ quick settings */
 const TILES = [
   { id: "tor", icon: "shield_lock", title: "Tor", sub: (on) => (on ? "All traffic through Tor" : "Direct connection"), cls: "tor" },
-  { id: "wifi", icon: "wifi", title: "Wi-Fi", sub: (on) => (on ? "Connected" : "Off") },
+  { id: "wifi", icon: "wifi", title: "Wi-Fi", sub: (on) => (!on ? "Off" : net.wifiConnected ? "Connected" : net.wired ? "Using a cable" : "Not connected") },
   { id: "bluetooth", icon: "bluetooth", title: "Bluetooth", sub: (on) => (on ? "On" : "Off") },
   { id: "dark", icon: "dark_mode", title: "Dark theme", sub: (on) => (on ? "On" : "Off") },
   { id: "usbguard", icon: "usb", title: "USB guard", sub: (on) => (on ? "New devices blocked" : "Allowing devices") },
   { id: "mac", icon: "fingerprint", title: "MAC spoofing", sub: (on) => (on ? "Random each connect" : "Off") },
   { id: "airplane", icon: "flight", title: "Airplane mode", sub: (on) => (on ? "All radios off" : "Off") },
 ];
+const net = { wifiConnected: true, wired: false };
 const tileState = { tor: true, wifi: true, bluetooth: false, dark: state.dark, usbguard: true, mac: true, airplane: false };
 
 function buildTiles() {
@@ -566,7 +567,9 @@ async function refreshStatus() {
   tileState.tor = state.tor; tileState.dark = state.dark;
   $("#qs-mode").textContent = state.live ? "Wraith Live" : "Wraith";
   if (st.user) { $("#qs-user").textContent = st.user; $("#qs-avatar").textContent = st.user[0].toUpperCase(); }
-  $("#wifi-icon").textContent = st.wifi === false ? "wifi_off" : st.wifiConnected === false ? "signal_wifi_statusbar_null" : "wifi";
+  if (st.wifiConnected !== undefined) Object.assign(net, { wifiConnected: st.wifiConnected, wired: !!st.wired });
+  $("#wifi-icon").textContent = st.wifiConnected === false && st.wired ? "lan"
+    : st.wifi === false ? "wifi_off" : st.wifiConnected === false ? "signal_wifi_statusbar_null" : "wifi";
   const batt = $(".batt");
   if (st.battery === null) batt.hidden = true;
   else if (st.battery !== undefined) {

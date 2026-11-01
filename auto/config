@@ -40,5 +40,5 @@ lb config noauto \
     --iso-publisher "crafted by VIPIN" \
     --iso-volume "WRAITH" \
     --image-name wraith \
-    --bootappend-live "boot=live components quiet splash hostname=wraith username=wraith noswap nopersistence $WRAITH_HARDEN" \
+    --bootappend-live "boot=live components quiet splash hostname=wraith username=wraith user-fullname=Wraith noswap nopersistence $WRAITH_HARDEN" \
     "${@}"
