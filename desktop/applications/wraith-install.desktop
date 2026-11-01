@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Install Wraith
+Comment=Install Wraith on this computer
+Exec=wraith-install
+Icon=wraith-install
+Categories=System;
+Keywords=install;installer;calamares;disk
+Terminal=false

@@ -67,7 +67,9 @@ DEFAULT_DOCK = [  # first existing id of each group
 RENAME = {"foot": "Terminal", "org.codeberg.dnkl.foot": "Terminal", "org.gnome.Nautilus": "Files",
           "kali-metasploit-framework": "Metasploit", "kali-burpsuite": "Burp Suite"}
 HIDE = {"foot", "org.codeberg.dnkl.foot", "footclient", "foot-server", "org.codeberg.dnkl.footclient", "org.codeberg.dnkl.foot-server",
-        "org.freedesktop.Xwayland", "root-terminal", "display-im7.q16", "python3.14", "texdoctk"}
+        "org.freedesktop.Xwayland", "root-terminal", "display-im7.q16", "python3.14", "texdoctk",
+        "calamares", "calamares-install-debian", "install-debian", "io.calamares.calamares"}   # "Install Wraith" (wraith-install) replaces these
+LIVE_ONLY = {"wraith-install"}
 KALI_MENU = "/etc/xdg/menus/applications-merged/kali-applications.menu"
 LIVE_STATUS = "/run/wraith/desktop-status.json"   # written by wraith-status-watch (root)
 ACTIVITY = os.path.join(GLib.get_user_runtime_dir(), "wraith-activity.json")   # written by Wraith apps' jobs
@@ -176,6 +178,7 @@ class Apps:
         self._index_icons()
         cat_map, order = self._kali_categories()
         desktop = os.environ.get("XDG_CURRENT_DESKTOP", "Hyprland").split(":")
+        live = "boot=live" in open("/proc/cmdline").read().split()
         dirs = ["/usr/share/applications", "/usr/local/share/applications",
                 os.path.expanduser("~/.local/share/applications")]
         apps, used = {}, []
@@ -189,7 +192,8 @@ class Apps:
                 except Exception:
                     continue
                 if (e.get("Type") != "Application" or e.get("NoDisplay", "").lower() == "true"
-                        or e.get("Hidden", "").lower() == "true" or app_id in HIDE or not e.get("Exec")):
+                        or e.get("Hidden", "").lower() == "true" or app_id in HIDE or not e.get("Exec")
+                        or (app_id in LIVE_ONLY and not live)):
                     apps.pop(app_id, None)
                     continue
                 only = [x for x in e.get("OnlyShowIn", "").split(";") if x]

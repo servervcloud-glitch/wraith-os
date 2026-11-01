@@ -4,7 +4,7 @@ set -euo pipefail
 
 chmod 0755 /usr/local/sbin/wraith-* /usr/local/lib/wraith/*.py
 chmod 0440 /etc/sudoers.d/wraith-ctl
-chmod 0755 /usr/lib/systemd/system-generators/wraith-live-autologin /usr/local/bin/wraith-shell /usr/local/bin/wraith-shell-ctl /usr/local/bin/wraith-app /usr/local/bin/wraith-welcome-once
+chmod 0755 /usr/lib/systemd/system-generators/wraith-live-autologin /usr/local/bin/wraith-shell /usr/local/bin/wraith-shell-ctl /usr/local/bin/wraith-app /usr/local/bin/wraith-welcome-once /usr/local/bin/wraith-install
 gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
 
 # Identity

@@ -71,7 +71,7 @@ mkdir -p "$D/usr/share/wraith/apps" "$D/usr/share/applications" "$D/usr/share/ic
 cp -r "$SRC"/desktop/apps/common "$SRC"/desktop/apps/settings "$SRC"/desktop/apps/apps \
       "$SRC"/desktop/apps/terminal "$SRC"/desktop/apps/welcome "$D/usr/share/wraith/apps/"
 find "$D/usr/share/wraith/apps" -name mock.js -delete       # preview-only stand-ins
-install -m 755 "$SRC/desktop/apps/host/wraith-app" "$SRC/desktop/apps/host/wraith-welcome-once" "$D/usr/local/bin/"
+install -m 755 "$SRC/desktop/apps/host/wraith-app" "$SRC/desktop/apps/host/wraith-welcome-once" "$SRC/desktop/apps/host/wraith-install" "$D/usr/local/bin/"
 install -m 644 "$SRC"/desktop/applications/*.desktop "$D/usr/share/applications/"
 install -m 644 "$SRC"/desktop/icons/*.svg "$D/usr/share/icons/hicolor/scalable/apps/"
 

@@ -1,3 +1,5 @@
 #!/bin/sh
+# "Install Wraith" in the boot menu: open the installer straight away.
+grep -qw 'wraith.mode=install' /proc/cmdline && exec wraith-install
 # Opens the Welcome screen on the first login (until it's finished once).
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/wraith/welcome-done" ] || exec wraith-app welcome
