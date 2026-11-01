@@ -18,6 +18,15 @@
     <div class="bar-left">
       <span id="clock" class="clock"></span>
       <span id="date" class="date"></span>
+      <!-- Buttons for the focused window when it has none of its own (e.g. the installer) -->
+      <div id="wincap" class="wincap" hidden>
+        <span id="wincap-title" class="wincap-title"></span>
+        <span class="wbtns">
+          <button class="wbtn min" data-act="min" title="Minimise" aria-label="Minimise"><span class="ms">remove</span></button>
+          <button class="wbtn max" data-act="max" title="Maximise" aria-label="Maximise"><span class="ms">open_in_full</span></button>
+          <button class="wbtn close" data-act="close" title="Close" aria-label="Close"><span class="ms">close</span></button>
+        </span>
+      </div>
     </div>
     <!-- Dynamic Island: live activities morph out of this pill -->
     <div id="island" class="island" role="status" aria-live="polite">

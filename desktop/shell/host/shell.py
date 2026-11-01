@@ -445,12 +445,28 @@ class Backend:
         ok, _ = run(["wraith-minimize", "restore", addr])
         return {"ok": ok}
 
+    def winctl(self, a):
+        """Minimise / maximise / close a window that has no buttons of its own."""
+        addr, act = a.get("address") or "", a.get("action")
+        if not re.fullmatch(r"0x[0-9a-f]+", addr):
+            return {"ok": False}
+        if act == "close":
+            cmd = ["hyprctl", "dispatch", "closewindow", f"address:{addr}"]
+        elif act == "min":
+            cmd = ["wraith-minimize", addr]
+        elif act == "max":
+            cmd = ["hyprctl", "--batch", f"dispatch focuswindow address:{addr} ; dispatch fullscreen 1"]
+        else:
+            return {"ok": False}
+        ok, _ = run(cmd)
+        return {"ok": ok}
+
     def inputRegion(self, a):
         GLib.idle_add(self.host.set_input, a.get("rects") or [], bool(a.get("keyboard")))
         return {"ok": True}
 
     CALLS = {"status": status, "toggle": toggle, "set": set, "theme": theme, "apps": apps_,
-             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "restore": restore, "inputRegion": inputRegion}
+             "launch": launch, "power": power, "media": media, "openApp": openApp, "showFile": showFile, "restore": restore, "winctl": winctl, "inputRegion": inputRegion}
 
     def call(self, name, args):
         fn = self.CALLS.get(name)
@@ -890,8 +906,25 @@ class Host:
         def push(wins):
             GLib.idle_add(lambda: (self._js(self.ui_view, f"window.shell && shell.minimized({json.dumps(wins)})"), False)[1])
 
+        def active():
+            """The focused window, unless it's a Wraith app (those draw their own buttons)."""
+            ok, out = run(["hyprctl", "activewindow", "-j"], timeout=5)
+            try:
+                w = json.loads(out) if ok else {}
+            except ValueError:
+                return None
+            cls = w.get("class") or ""
+            if not w.get("address") or not cls or cls.startswith("os.wraith.") \
+                    or w.get("workspace", {}).get("name") == "special:minimized":
+                return None
+            name, _ = self.backend.apps.for_window(cls)
+            return {"address": w["address"], "title": w.get("title") or name or cls}
+
+        def push_active(win):
+            GLib.idle_add(lambda: (self._js(self.ui_view, f"window.shell && shell.activeWindow({json.dumps(win)})"), False)[1])
+
         def loop():
-            last = None
+            last = last_active = None
             while True:
                 try:
                     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -903,7 +936,7 @@ class Host:
                             break
                         buf += data.decode(errors="ignore")
                         *lines, buf = buf.split("\n")
-                        changed = False
+                        changed = focus = False
                         for line in lines:
                             ev, _, arg = line.partition(">>")
                             # apps that do send an xdg minimize request (some never do)
@@ -911,11 +944,18 @@ class Host:
                                 subprocess.Popen(["wraith-minimize", "0x" + arg.split(",")[0]], start_new_session=True)
                             if ev in ("openwindow", "closewindow", "movewindow", "movewindowv2"):
                                 changed = True
+                            if ev in ("activewindowv2", "openwindow", "closewindow", "windowtitlev2", "movewindowv2"):
+                                focus = True
                         if changed:
                             wins = minimized()
                             if wins != last:
                                 last = wins
                                 push(wins)
+                        if focus:
+                            win = active()
+                            if win != last_active:
+                                last_active = win
+                                push_active(win)
                 except OSError:
                     pass
                 time.sleep(2)   # Hyprland restarting, or not running

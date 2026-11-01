@@ -179,6 +179,17 @@ function minimized(wins) {
   requestAnimationFrame(syncInput);
 }
 
+// Buttons in the bar for the focused window, when it has none of its own.
+let capAddr = null;
+function activeWindow(win) {
+  capAddr = win?.address ?? null;
+  const box = $("#wincap");
+  box.hidden = !win;
+  if (win) $("#wincap-title").textContent = win.title;
+  requestAnimationFrame(syncInput);
+}
+for (const b of document.querySelectorAll("#wincap .wbtn")) b.onclick = () => capAddr && call("winctl", { address: capAddr, action: b.dataset.act });
+
 // macOS-style magnification: the icon under the cursor grows the most and its
 // neighbours a little less, so the dock swells smoothly around the pointer.
 // The icons are re-drawn at the larger size (not scaled), so they stay sharp.
@@ -658,7 +669,7 @@ async function start() {
   });
   if (params.get("wallpaper")) useWallpaper(params.get("wallpaper"));
   island.render();
-  window.shell = { island, osd, activity, download, minimized, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
+  window.shell = { island, osd, activity, download, minimized, activeWindow, media: (m) => island.media(m), privacy: (p) => island.privacy(p), openDrawer, openQS, closeAll, toggleTile, refreshStatus, launch: (n) => { const a = APPS.find((x) => x.name === n); launch(a, document.querySelector(`.app-btn[aria-label="${n}"] .icon`) ?? $("#drawer-btn")); }, useWallpaper, state };
   requestAnimationFrame(syncInput);
 }
 start();
