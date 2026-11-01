@@ -1,0 +1,36 @@
+#!/usr/bin/python3
+"""wraith-display-auto - keep Hyprland's automatic display scale usable.
+
+Screens that report a bogus physical size (virtual machines, some cheap
+panels) make Hyprland's "auto" scale pick 2x on a 1280x800 screen, leaving a
+640x400 desktop that Wraith's windows don't fit on. When no scale was chosen in
+Settings > Sound & display, lower any scale that leaves less than 1280x720 of
+desktop to the largest one that doesn't.
+"""
+import json
+import os
+import re
+import subprocess
+
+DISPLAY_CONF = os.path.expanduser("~/.config/hypr/wraith-display.conf")
+SCALES = (2.0, 1.75, 1.5, 1.25, 1.0)
+MIN_W, MIN_H = 1280, 720
+
+try:
+    chosen = any(re.match(r"\s*monitor\s*=", line) for line in open(DISPLAY_CONF))
+except OSError:
+    chosen = False
+if not chosen:
+    try:
+        monitors = json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True,
+                                             text=True, timeout=5).stdout or "[]")
+    except Exception:
+        monitors = []
+    for m in monitors:
+        w, h, scale = m.get("width", 0), m.get("height", 0), m.get("scale", 1.0)
+        if not w or not h or (w / scale >= MIN_W and h / scale >= MIN_H):
+            continue
+        fit = next((s for s in SCALES if s <= scale and w / s >= MIN_W and h / s >= MIN_H), 1.0)
+        if fit != scale:
+            subprocess.run(["hyprctl", "keyword", "monitor", f"{m['name']},preferred,auto,{fit}"],
+                           capture_output=True, timeout=5)

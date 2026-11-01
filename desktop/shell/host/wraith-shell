@@ -3,8 +3,11 @@
 # libgtk4-layer-shell must be loaded before libwayland-client, so preload it.
 lib=$(ldconfig -p | awk '/libgtk4-layer-shell\.so\.0 /{print $NF; exit}')
 [ -n "$lib" ] && export LD_PRELOAD="$lib${LD_PRELOAD:+:$LD_PRELOAD}"
+# A usable desktop size before anything is drawn (see wraith-display-auto)
+command -v wraith-display-auto >/dev/null && wraith-display-auto
 # Keep running: if the shell crashes, bring it back - but only while the
-# desktop session is still there, and not in a tight loop.
+# desktop session is still there, and not in a tight loop. Some virtual GPUs
+# drop GTK's GPU renderer at once, so after two quick crashes draw in software.
 crashes=0
 while :; do
     started=$(date +%s)
@@ -13,7 +16,17 @@ while :; do
     [ $status -eq 0 ] && exit 0
     [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/${WAYLAND_DISPLAY:-wayland-0}" ] || exit 0   # session ended
     [ $(( $(date +%s) - started )) -lt 20 ] && crashes=$((crashes + 1)) || crashes=0
-    [ $crashes -ge 5 ] && { echo "wraith-shell keeps crashing, giving up" >&2; exit 1; }
+    if [ $crashes -eq 2 ] && [ -z "$WRAITH_SHELL_SOFTWARE" ]; then
+        echo "wraith-shell: switching to software rendering" >&2
+        export GSK_RENDERER=cairo WRAITH_SHELL_SOFTWARE=1
+    fi
+    if [ $crashes -ge 5 ]; then
+        echo "wraith-shell keeps crashing, giving up" >&2
+        # don't leave a bare screen: say so, and open a terminal to work from
+        hyprctl notify 3 30000 "rgb(ffb4ab)" "The Wraith desktop shell keeps crashing - Super+Enter opens a terminal" >/dev/null 2>&1
+        (wraith-app terminal || foot) >/dev/null 2>&1 &
+        exit 1
+    fi
     echo "wraith-shell exited ($status), restarting in 1 s" >&2
     sleep 1
 done

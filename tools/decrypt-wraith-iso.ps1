@@ -100,4 +100,5 @@ Say "`nDone: $iso ($sizeGB GB)" 'Green'
 Say 'You can delete the .part files now.'
 Say "`nNext: create the virtual machine - 8 GB RAM, 2+ CPU cores, 80 GB+ disk," 'White'
 Say '3D acceleration ON, Secure Boot OFF - and boot it from this ISO.' 'White'
+Say 'Use VMware or QEMU/virt-manager (virtio-gpu, 3D): VirtualBox cannot show the Wraith desktop.' 'White'
 Read-Host "`nPress Enter to close"

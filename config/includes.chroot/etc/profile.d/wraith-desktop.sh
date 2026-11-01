@@ -7,12 +7,24 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ] && [ -z "${WRAITH_NO_D
     for f in hyprland.conf wraith-display.conf; do
         [ -f "$HOME/.config/hypr/$f" ] || cp "/etc/skel/.config/hypr/$f" "$HOME/.config/hypr/"
     done
-    _wraith_start=$(date +%s)
-    start-hyprland >"$HOME/.cache/wraith-desktop.log" 2>&1
-    if [ $(( $(date +%s) - _wraith_start )) -lt 10 ]; then
-        printf '\n  The Wraith desktop could not start.\n'
-        printf '  In a virtual machine, turn on 3D acceleration for the display and reboot.\n'
-        printf '  Details: ~/.cache/wraith-desktop.log    Try again: log out, or run start-hyprland\n\n'
+    if [ "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" = VirtualBox ]; then
+        # VirtualBox's display (VMSVGA) starts Hyprland but never shows a
+        # window - a black screen with no way out - so don't start it there.
+        printf '\n  The Wraith desktop does not work in VirtualBox (its display adapter\n'
+        printf '  cannot show the desktop). Use QEMU / virt-manager with virtio-gpu and 3D,\n'
+        printf '  VMware, or a real computer. Try anyway: start-hyprland\n\n'
+    else
+        _wraith_start=$(date +%s)
+        start-hyprland >"$HOME/.cache/wraith-desktop.log" 2>&1
+        if [ $(( $(date +%s) - _wraith_start )) -lt 10 ]; then
+            printf '\n  The Wraith desktop could not start.\n'
+            if ! ls /dev/dri/card* >/dev/null 2>&1; then
+                printf '  No graphics driver is running (safe graphics / nomodeset?). Boot "Wraith Live" instead.\n'
+            else
+                printf '  In a virtual machine, use a 3D-capable display (QEMU/virt-manager: virtio-gpu with 3D).\n'
+            fi
+            printf '  Details: ~/.cache/wraith-desktop.log    Try again: log out, or run start-hyprland\n\n'
+        fi
+        unset _wraith_start
     fi
-    unset _wraith_start
 fi

@@ -65,7 +65,7 @@ D="$WORK/config/includes.chroot"
 mkdir -p "$D/usr/share/wraith/shell" "$D/usr/local/bin"
 cp -r "$SRC/desktop/shell/ui" "$SRC/desktop/shell/host" "$D/usr/share/wraith/shell/"
 rm -rf "$D/usr/share/wraith/shell/ui/preview"     # preview-only sample icons
-install -m 755 "$SRC/desktop/shell/host/wraith-shell" "$SRC/desktop/shell/host/wraith-shell-ctl" "$D/usr/local/bin/"
+install -m 755 "$SRC/desktop/shell/host/wraith-shell" "$SRC/desktop/shell/host/wraith-shell-ctl" "$SRC/desktop/shell/host/wraith-display-auto" "$D/usr/local/bin/"
 # Wraith apps: Settings, App Manager, Terminal, Welcome
 mkdir -p "$D/usr/share/wraith/apps" "$D/usr/share/applications" "$D/usr/share/icons/hicolor/scalable/apps"
 cp -r "$SRC"/desktop/apps/common "$SRC"/desktop/apps/settings "$SRC"/desktop/apps/apps \

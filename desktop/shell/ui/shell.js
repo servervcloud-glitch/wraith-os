@@ -606,12 +606,13 @@ async function start() {
     $("#wallpaper").remove(); $("#demo-window").remove();
     document.body.style.background = "transparent";
   }
+  // The clock first: loading every installed app can take a while
+  tick(); setInterval(tick, 1000 * 5);
   await loadApps();
   await refreshStatus();
   applyTheme(); setTorChip();
   buildDock(); buildChips(); buildTiles(); buildSliders();
   setInterval(refreshStatus, 10000);
-  tick(); setInterval(tick, 1000 * 15);
   $("#drawer-btn").onclick = openDrawer;
   $("#settings-btn").onclick = () => { closeAll(); call("power", { action: "settings" }); };
   $("#lock-btn").onclick = () => { closeAll(); call("power", { action: "lock" }); };

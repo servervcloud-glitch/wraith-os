@@ -167,12 +167,18 @@ class Backend:
         vol = round(float(m.group(1)) * 100) if m else None
         ok, out = run(["brightnessctl", "-c", "backlight", "-m"])
         m = re.search(r",(\d+)%,", out) if ok else None
-        scale = 1.0
+        scale = None
         try:
             m2 = re.search(r",\s*([\d.]+)\s*$", open(DISPLAY_CONF).read().strip().splitlines()[-1])
-            scale = float(m2.group(1)) if m2 else 1.0
+            scale = float(m2.group(1)) if m2 else None
         except (OSError, IndexError):
             pass
+        if scale is None:  # automatic: report what the screen actually uses
+            ok2, out2 = run(["hyprctl", "monitors", "-j"])
+            try:
+                scale = float(json.loads(out2)[0]["scale"]) if ok2 else 1.0
+            except (ValueError, IndexError, KeyError):
+                scale = 1.0
         return {"volume": vol, "brightness": int(m.group(1)) if m else None, "scale": scale}
 
     def setLevel(self, a):

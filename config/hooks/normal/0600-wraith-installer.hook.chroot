@@ -1,0 +1,74 @@
+#!/bin/bash
+# "Install Wraith": the installer (Calamares) in Wraith's name, logo and colours
+# instead of Debian's. Built from calamares-settings-debian's branding.
+set -euo pipefail
+
+B=/etc/calamares/branding
+if [ ! -f "$B/debian/branding.desc" ] || [ ! -f /etc/calamares/settings.conf ]; then
+    echo "wraith: no Calamares Debian branding found, installer left as is"
+    exit 0
+fi
+rm -rf "$B/wraith"
+cp -a "$B/debian" "$B/wraith"
+
+python3 - "$B/wraith" <<'EOF'
+import re, sys
+from PIL import Image, ImageDraw
+
+d = sys.argv[1]
+
+# Logo: the Wraith tile with its four dots (same as the Welcome icon)
+S = 512
+img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+grad = Image.new("RGBA", (S, S))
+gd = ImageDraw.Draw(grad)
+top, bottom = (0x3f, 0x38, 0x91), (0x1d, 0x1a, 0x3f)
+for y in range(S):
+    t = y / (S - 1)
+    gd.line([(0, y), (S, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bottom)) + (255,))
+mask = Image.new("L", (S, S), 0)
+ImageDraw.Draw(mask).rounded_rectangle([32, 32, S - 32, S - 32], radius=128, fill=255)
+img.paste(grad, (0, 0), mask)
+dots = ImageDraw.Draw(img)
+for cx, colour in ((148, "#9d97ff"), (220, "#ff8fb8"), (292, "#ffc27a"), (364, "#6fd3ff")):
+    dots.ellipse([cx - 34, 256 - 34, cx + 34, 256 + 34], fill=colour)
+img.save(f"{d}/wraith-logo.png")
+
+# Names, links, images and sidebar colours
+path = f"{d}/branding.desc"
+text = open(path, encoding="utf-8").read()
+values = {
+    "componentName": "wraith",
+    "productName": "Wraith OS", "shortProductName": "Wraith",
+    "version": "1.0", "shortVersion": "1.0",
+    "versionedName": "Wraith OS 1.0", "shortVersionedName": "Wraith 1.0",
+    "bootloaderEntryName": "Wraith",
+    "productUrl": "https://github.com/servervcloud-glitch/wraith-os",
+    "supportUrl": "https://github.com/servervcloud-glitch/wraith-os/issues",
+    "knownIssuesUrl": "https://github.com/servervcloud-glitch/wraith-os/issues",
+    "releaseNotesUrl": "https://github.com/servervcloud-glitch/wraith-os/releases",
+    "donateUrl": "",
+    "productLogo": "wraith-logo.png", "productIcon": "wraith-logo.png", "productWelcome": "wraith-logo.png",
+    "sidebarBackground": "#1d1a3f", "SidebarBackground": "#1d1a3f",
+    "sidebarText": "#ffffff", "SidebarText": "#ffffff",
+    "sidebarTextSelect": "#1d1a3f", "SidebarTextCurrent": "#1d1a3f",
+    "sidebarTextHighlight": "#9d97ff", "SidebarBackgroundCurrent": "#9d97ff",
+}
+for key, val in values.items():
+    if key == "componentName":
+        text = re.sub(r"(?m)^componentName:.*$", "componentName:  wraith", text)
+    else:
+        text = re.sub(rf'(?m)^(\s+{key}:\s*).*$', lambda m: f'{m.group(1)}"{val}"', text)
+open(path, "w", encoding="utf-8").write(text)
+
+# The slide shown while it installs
+show = f"{d}/show.qml"
+qml = open(show, encoding="utf-8").read()
+qml = qml.replace('"slide1.png"', '"wraith-logo.png"').replace("width: 467; height: 280", "width: 220; height: 220")
+qml = re.sub(r"Welcome to Debian GNU/Linux\.?", "Welcome to Wraith OS.", qml)
+open(show, "w", encoding="utf-8").write(qml)
+EOF
+
+sed -i 's/^branding:.*/branding: wraith/' /etc/calamares/settings.conf
+grep -q '^branding: wraith' /etc/calamares/settings.conf
+echo "wraith: installer branded"

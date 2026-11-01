@@ -37,3 +37,6 @@ fonts-noto-color-emoji
 dbus-user-session
 adwaita-icon-theme
 sudo
+# Kali's tool menu: a launcher + icon for every tool, and the categories the
+# app drawer and App Manager sort them by (kali-linux-everything leaves it out)
+kali-menu

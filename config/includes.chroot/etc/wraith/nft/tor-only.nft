@@ -45,8 +45,13 @@ table inet wraith {
         type filter hook output priority 0; policy drop;
         ct state invalid drop
 
-        # Redirected traffic ends up on loopback.
+        # Redirected traffic ends up on loopback. While this chain runs it is
+        # still marked for the real interface (the kernel re-routes it to
+        # loopback only afterwards), so match the redirected address as well -
+        # otherwise every DNS query and TCP connection sent to Tor is dropped.
+        # Nothing addressed to 127.0.0.0/8 can leave the machine.
         oif "lo" accept
+        ip daddr 127.0.0.0/8 accept
 
         # Tor itself, IPv4 only.
         meta nfproto ipv4 meta skuid "debian-tor" ct state new,established accept
